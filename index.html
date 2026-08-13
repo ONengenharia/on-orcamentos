@@ -217,6 +217,7 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -860,6 +861,7 @@ function createOrc(){
     desconto:desc,pagamento:pgto,
     validade:document.getElementById('validade')?.value||'30 dias',
     status:'rascunho',photos:[],sig:null,
+    audios:[...(recs['vend']||[])],
     created:new Date().toLocaleDateString('pt-BR'),folderId:'',
     createdBy:currentUser?.name||'—',kanban:'aguardando'};
   orcs.push(orc);
@@ -923,7 +925,7 @@ function renderAdmin(){
         ${o.status==='pendente'?`<button class="btn btn-ok btn-sm" onclick="approve(${i})">&#10003; Aprovar</button><button class="btn btn-d btn-sm" onclick="reject(${i})">&#10005; Recusar</button>`:''}
         <button class="btn btn-b btn-sm" onclick="verOrc(${i})">&#128065; Ver</button>
         <button class="btn btn-b btn-sm" onclick="gerarPDF(${i})">&#128196; PDF</button>
-        ${o.tel?`<button class="btn btn-sm" style="background:#25D366;color:white;border-color:#25D366" onclick="enviarWA(${i})">&#128172; WA</button>`:''}
+        <button class="btn btn-sm" style="background:#1D3140;color:white" onclick="compartilharPasta(${i})">&#128230; Compartilhar</button>
         <button class="btn btn-sm" onclick="editOrc(${i})">&#9998; Editar</button>
         <button class="btn btn-d btn-sm" onclick="deleteOrc(${i})">&#128465; Excluir</button>
       </div>
@@ -1061,7 +1063,7 @@ function renderVL(){
       +(o.status==='pendente'?'<div style="font-size:12px;color:#856404;margin-top:8px;padding:7px 10px;background:#fff3cd;border-radius:6px">&#9203; Aguardando aprovação do Admin</div>':'')
       +'<div class="btn-group">'
       +'<button class="btn btn-b btn-sm" onclick="gerarPDF('+i+')">&#128196; PDF</button>'
-      +(o.tel?'<button class="btn btn-sm" style="background:#25D366;color:white;border-color:#25D366" onclick="enviarWA('+i+')">&#128172; WhatsApp</button>':'')
+      +'<button class="btn btn-sm" style="background:#1D3140;color:white" onclick="compartilharPasta('+i+')">&#128230; Compartilhar</button>'
       +'</div>'
       +'</div>';
   }).join('');
@@ -1273,15 +1275,30 @@ function openOS(i){
       +'<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid #cde0f0;margin-top:6px;padding-top:6px"><span>Total materiais</span><span style="color:var(--blue)">'+brl((o.materiais||[]).reduce((a,m)=>a+m.qty*m.val,0))+'</span></div>'
       +'</div>'
     :'')
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">'    +'<div>'    +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">✍️ Assinatura do cliente</div>'    +'<div class="sig-wrap"><div class="sig-tb"><span>'+(o.sig?'✅ Coletada':'Assine aqui')+'</span><button class="btn btn-sm" onclick="clearSig('+i+')">🧹</button></div>'    +'<canvas class="sc" id="sig-'+i+'" width="300" height="130" style="height:130px"></canvas></div>'    +'</div>'    +'<div>'    +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">✍️ Assinatura do executor</div>'    +'<div class="sig-wrap"><div class="sig-tb"><span>'+(o.sigExec?'✅ Coletada':'Assine aqui')+'</span><button class="btn btn-sm" onclick="clearSigExec('+i+')">🧹</button></div>'    +'<canvas class="sc" id="sig-exec-'+i+'" width="300" height="130" style="height:130px"></canvas></div>'    +'</div>'    +'</div>'
+    +'<div style="margin-bottom:10px">'
+    +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">✍️ Assinatura do cliente</div>'
+    +'<div class="sig-wrap"><div class="sig-tb"><span>'+(o.sig?'✅ Coletada':'Assine aqui')+'</span><button class="btn btn-sm" onclick="ampliarAssinatura('+i+',\'cliente\')">&#x26F6; Ampliar</button><button class="btn btn-sm" onclick="clearSig('+i+')">🧹</button></div>'
+    +'<canvas class="sc" id="sig-'+i+'" width="620" height="150" style="height:150px"></canvas></div>'
+    +'</div>'
+    +'<div style="margin-bottom:10px">'
+    +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">✍️ Assinatura do executor</div>'
+    +'<div class="sig-wrap"><div class="sig-tb"><span>'+(o.sigExec?'✅ Coletada':'Assine aqui')+'</span><button class="btn btn-sm" onclick="ampliarAssinatura('+i+',\'executor\')">&#x26F6; Ampliar</button><button class="btn btn-sm" onclick="clearSigExec('+i+')">🧹</button></div>'
+    +'<canvas class="sc" id="sig-exec-'+i+'" width="620" height="150" style="height:150px"></canvas></div>'
+    +'</div>'
     +(o.status!=='concluido'
       ?'<div class="btn-group"><button class="btn btn-p" onclick="finishOS('+i+')">✅ Finalizar OS</button></div>'
       :'<div class="btn-group"><div style="display:flex;align-items:center;gap:5px;font-size:13px;color:#155724;font-weight:700;padding:8px 12px;background:#d4edda;border-radius:7px">✅ OS finalizada</div>'
       +'<button class="btn-pdf" onclick="gerarPDF('+i+')">📄 PDF</button>'
-      +'<button class="btn-wa" onclick="enviarWA('+i+')">💬 WhatsApp</button></div>')
+      +'<button class="btn-pdf" style="background:#1D3140" onclick="compartilharPasta('+i+')">📦 Compartilhar</button>'
+      +'<button class="btn-pdf" style="background:#28a745" onclick="enviarEscritorio('+i+')">🏢 Enviar escritório</button>'
+      +(o.sentToOffice?'<div style="font-size:11px;color:#28a745;padding:4px 8px">✓ Enviado ao escritório</div>':'')
+      +'</div>')
     +'</div></div>';
   // Init sig and photos
+  // Carregar áudios do vendedor (se houver) na visão de execução
+  if(o.audios&&o.audios.length&&!recs['ex_'+i])recs['ex_'+i]=[...o.audios];
   buildObs('oe-modal-'+i,'ex_'+i);
+  renderAudios('ex_'+i);
   initSig(i,o);
   initSigExec(i,o);
   renderPhotosIn(i,'os-photos-'+i);
@@ -1551,18 +1568,8 @@ async function driveLoadAll(){
 }
 
 async function tryLoadConfig(){
-  const exp=parseInt(localStorage.getItem('on_drive_token_exp')||'0');
-  if(Date.now()<exp&&configFileId&&driveToken){
-    // Wait a bit for GIS to load before trying
-    await new Promise(r=>setTimeout(r,1500));
-    try{await driveLoadAll();
-      document.getElementById('btn-drive-connect').style.display='none';
-      document.getElementById('btn-drive-save').style.display='inline-flex';
-      document.getElementById('btn-drive-load').style.display='inline-flex';
-    }catch(e){setSyncSt('ok','Clique em Conectar Drive')}
-  } else {
-    setSyncSt('ok','Clique em Conectar Drive');
-  }
+  // Drive é totalmente opcional - app já funciona com dados locais
+  setSyncSt('ok','Dados salvos localmente. Drive opcional.');
 }
 
 async function createOrcFolder(i){
@@ -1606,9 +1613,27 @@ async function uploadSigToDrive(i){
 }
 
 function autoSave(){
-  try{localStorage.setItem('on_fotos',JSON.stringify(orcs.map(o=>o.photos||[])))}catch(e){}
+  // Salva TUDO localmente sempre, independente do Drive
+  try{
+    localStorage.setItem('on_data',JSON.stringify({orcs,svcs,team,nid,adminPin}));
+  }catch(e){console.error('Erro ao salvar local:',e)}
   clearTimeout(autoSave._t);
-  autoSave._t=setTimeout(()=>{if(currentUser?.role==='admin')driveSaveAll()},2000);
+  // Sincroniza com Drive só se já estiver conectado (opcional)
+  autoSave._t=setTimeout(()=>{if(driveToken&&currentUser?.role==='admin')driveSaveAll()},2000);
+}
+
+function loadLocalData(){
+  try{
+    const raw=localStorage.getItem('on_data');
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(d.orcs)orcs=d.orcs;
+    if(d.svcs)svcs=d.svcs;
+    if(d.team)team=d.team;
+    if(d.nid)nid=d.nid;
+    if(d.adminPin)adminPin=d.adminPin;
+    return true;
+  }catch(e){console.error('Erro ao carregar local:',e);return false}
 }
 
 // ── PDF ────────────────────────────────────────────────
@@ -1624,7 +1649,7 @@ async function gerarPDF(i){
     doc.addImage(HB64,'PNG',3,2,PW-6,20);
     doc.setDrawColor(...B);doc.setLineWidth(0.6);doc.line(ML,23,PW-MR,23);
     let y=MT+3;
-    const isOS=o.status==='concluido'||o.status==='execucao';
+    const isOS=!!o.finishedAt;
     doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...D);doc.text(isOS?'ORDEM DE SERVIÇO':'ORÇAMENTO DE SERVIÇOS',ML,y);
     doc.setTextColor(...B);doc.setFontSize(13);doc.text(o.id,PW-MR,y,{align:'right'});
     doc.setDrawColor(...B);doc.setLineWidth(0.5);y+=3;doc.line(ML,y,PW-MR,y);y+=8;
@@ -1761,15 +1786,324 @@ async function gerarPDF(i){
     doc.addImage(FB64,'PNG',3,PH-24,PW-6,21);
     // Upload PDF to Drive
     const pdfBlob=doc.output('blob');
-    doc.save(`Orcamento_${o.id}_${o.client.replace(/\s+/g,'_')}.pdf`);
+    const pdfName=(o.finishedAt?'OS_':'Orcamento_')+o.id+'_'+o.client.replace(/\s+/g,'_')+'.pdf';
+    if(opts.silent){
+      lov(false);
+      return{blob:pdfBlob,name:pdfName};
+    }
+    doc.save(pdfName);
     if(o.folderId&&driveToken){
       await uploadPDFToDrive(i,pdfBlob);
       toast('PDF salvo no Drive e baixado!','ok');
     } else {
       toast('PDF gerado e baixado!','ok');
     }
-  }catch(e){console.error(e);toast('Erro ao gerar PDF','e')}
-  finally{lov(false)}
+  }catch(e){console.error(e);toast('Erro ao gerar PDF','e');if(opts.silent)return null}
+  finally{if(!opts.silent)lov(false)}
+}
+
+// ── ASSINATURA EM TELA CHEIA ────────────────────────────
+function ampliarAssinatura(i,tipo){
+  const isExec=tipo==='executor';
+  const canvasId=isExec?'sig-exec-'+i:'sig-'+i;
+  const label=isExec?'Assinatura do executor':'Assinatura do cliente';
+  const modal=document.createElement('div');
+  modal.id='sig-fullscreen';
+  modal.style.cssText='position:fixed;inset:0;background:white;z-index:99999;display:flex;flex-direction:column;padding:12px';
+  modal.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:15px;font-weight:700;color:var(--dark)">✍️ ${label}</div>
+      <button onclick="fecharAmpliada()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--gray)">✕</button>
+    </div>
+    <canvas id="sig-full-canvas" style="flex:1;width:100%;border:2px solid #cde0f0;border-radius:10px;touch-action:none"></canvas>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn" onclick="limparAmpliada()" style="flex:1">🧹 Limpar</button>
+      <button class="btn btn-p" onclick="salvarAmpliada(${i},'${tipo}')" style="flex:2">✓ Salvar assinatura</button>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const fc=document.getElementById('sig-full-canvas');
+  const rect=fc.getBoundingClientRect();
+  fc.width=rect.width*2;fc.height=rect.height*2;
+  const ctx=fc.getContext('2d');
+  ctx.scale(2,2);
+  ctx.strokeStyle='#1D3140';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+
+  // Load existing signature if present
+  const orig=document.getElementById(canvasId);
+  const existing=isExec?orcs[i].sigExec:orcs[i].sig;
+  if(existing){
+    const img=new Image();
+    img.onload=()=>ctx.drawImage(img,0,0,rect.width,rect.height);
+    img.src=existing;
+  }
+
+  let dr=false;
+  const gp=e=>{const r=fc.getBoundingClientRect();
+    if(e.touches)return{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};
+    return{x:e.clientX-r.left,y:e.clientY-r.top}};
+  const down=e=>{dr=true;const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()};
+  const move=e=>{if(!dr)return;const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault()};
+  const up=()=>{dr=false};
+  fc.addEventListener('mousedown',down);fc.addEventListener('mousemove',move);fc.addEventListener('mouseup',up);
+  fc.addEventListener('touchstart',down,{passive:false});fc.addEventListener('touchmove',move,{passive:false});
+  fc.addEventListener('touchend',up);
+}
+
+function limparAmpliada(){
+  const fc=document.getElementById('sig-full-canvas');
+  if(fc)fc.getContext('2d').clearRect(0,0,fc.width,fc.height);
+}
+
+function salvarAmpliada(i,tipo){
+  const fc=document.getElementById('sig-full-canvas');
+  if(!fc)return;
+  const dataUrl=fc.toDataURL();
+  if(tipo==='executor'){orcs[i].sigExec=dataUrl}else{orcs[i].sig=dataUrl}
+  autoSave();
+  fecharAmpliada();
+  openOS(i); // Reabre modal atualizado
+  toast('Assinatura salva!','ok');
+}
+
+function fecharAmpliada(){
+  const m=document.getElementById('sig-fullscreen');
+  if(m)m.remove();
+}
+
+// ── COMPARTILHAR (ZIP + Drive público) ──────────────────
+async function compartilharPasta(i){
+  const o=orcs[i];
+  if(!window.JSZip){toast('Aguarde o carregamento e tente novamente','e');return}
+  lov(true,'Montando pacote para compartilhar...');
+  try{
+    const zip=new JSZip();
+    const baseName=o.id+'_'+o.client.replace(/\s+/g,'_');
+
+    // 1. PDF
+    const pdfRes=await gerarPDF(i,{silent:true});
+    if(pdfRes)zip.file(pdfRes.name,pdfRes.blob);
+
+    // 2. Fotos
+    if(o.photos&&o.photos.length){
+      const fotosFolder=zip.folder('fotos');
+      for(let f=0;f<o.photos.length;f++){
+        try{
+          const p=o.photos[f];
+          const dataUrl=typeof p==='string'?p:p.data;
+          const blob=await fetch(dataUrl).then(r=>r.blob());
+          fotosFolder.file('foto_'+(f+1)+'.jpg',blob);
+        }catch(e){console.error('foto',e)}
+      }
+    }
+
+    // 3. Assinaturas
+    if(o.sig){
+      try{const blob=await fetch(o.sig).then(r=>r.blob());zip.file('assinatura_cliente.png',blob)}catch(e){}
+    }
+    if(o.sigExec){
+      try{const blob=await fetch(o.sigExec).then(r=>r.blob());zip.file('assinatura_executor.png',blob)}catch(e){}
+    }
+
+    // 4. Áudio (se houver gravação nas observações)
+    const audioKey='ex_'+i;
+    if(recs[audioKey]&&recs[audioKey].length){
+      const audioFolder=zip.folder('audios');
+      recs[audioKey].forEach((rec,ri)=>{
+        if(rec.blob)audioFolder.file('audio_'+(ri+1)+'.webm',rec.blob);
+      });
+    }
+
+    // 5. Texto com dados completos
+    let txt='ORÇAMENTO / OS: '+o.id+'\n';
+    txt+='Cliente: '+o.client+'\n';
+    txt+='Telefone: '+(o.tel||'—')+'\n';
+    txt+='Endereço: '+(o.address||'—')+'\n';
+    txt+='Data: '+o.created+'\n\n';
+    txt+='SERVIÇOS:\n';
+    o.items.forEach(it=>{txt+='  '+it.qty+'x '+it.name+' — '+brl(it.qty*it.price)+'\n'});
+    txt+='\nTotal serviços: '+brl(tot(o.items))+'\n';
+    if(o.materiais&&o.materiais.length){
+      txt+='\nMATERIAIS:\n';
+      o.materiais.forEach(m=>{txt+='  '+m.qty+'x '+m.nome+' — '+brl(m.qty*m.val)+'\n'});
+    }
+    if(o.obs)txt+='\nObservações: '+o.obs+'\n';
+    if(o.chegada)txt+='\nChegada: '+o.chegada+(o.fimExec?' | Fim: '+o.fimExec+' | Duração: '+calcDuracao(o.chegada,o.fimExec):'')+'\n';
+    zip.file('resumo.txt',txt);
+
+    // Gera o ZIP
+    const zipBlob=await zip.generateAsync({type:'blob'});
+    const zipName=(o.finishedAt?'OS_':'Orcamento_')+baseName+'.zip';
+
+    if(!driveToken){
+      // Sem Drive: baixa o ZIP local e o vendedor compartilha manualmente
+      const url=URL.createObjectURL(zipBlob);
+      const a=document.createElement('a');a.href=url;a.download=zipName;a.click();
+      URL.revokeObjectURL(url);
+      toast('ZIP baixado! Conecte o Drive para gerar link automático.','ok');
+      lov(false);
+      return;
+    }
+
+    // Com Drive: sobe o ZIP e gera link público
+    lov(true,'Enviando para o Drive...');
+    const meta={name:zipName,parents:[ROOT_FOLDER]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',zipBlob);
+    const res=await fetch(UPLOAD_API+'/files?uploadType=multipart',{
+      method:'POST',headers:{Authorization:'Bearer '+driveToken},body:form
+    });
+    if(!res.ok)throw new Error('Upload falhou: '+res.status);
+    const file=await res.json();
+
+    // Torna público
+    await fetch(DRIVE_API+'/files/'+file.id+'/permissions',{
+      method:'POST',
+      headers:{Authorization:'Bearer '+driveToken,'Content-Type':'application/json'},
+      body:JSON.stringify({role:'reader',type:'anyone'})
+    });
+
+    const link='https://drive.google.com/file/d/'+file.id+'/view?usp=sharing';
+    orcs[i].shareLink=link;
+    autoSave();
+
+    lov(false);
+    toast('Pacote pronto! Abrindo WhatsApp...','ok');
+
+    // Abre WhatsApp com mensagem completa (resumo + link do pacote)
+    let msg=(o.finishedAt?'✅ *Serviço concluído* — OS '+o.id:'📋 *Orçamento* '+o.id)+'\n';
+    msg+='Cliente: '+o.client+'\n\n';
+    msg+='*Serviços:*\n';
+    o.items.forEach(it=>{msg+='• '+it.qty+'x '+it.name+' — '+brl(it.qty*it.price)+'\n'});
+    if(o.materiais&&o.materiais.length){
+      msg+='\n*Materiais:*\n';
+      o.materiais.forEach(m=>{msg+='• '+m.qty+'x '+m.nome+' — '+brl(m.qty*m.val)+'\n'});
+    }
+    const totalFinal=(o.desconto&&o.desconto.final)?o.desconto.final:tot(o.items);
+    const totalComMat=totalFinal+(o.materiais||[]).reduce((a,m)=>a+m.qty*m.val,0);
+    msg+='\n*Total: '+brl(totalComMat)+'*\n';
+    if(o.finishedAt&&o.chegada)msg+='\nExecutado em: '+o.created+' ('+(o.fimExec?calcDuracao(o.chegada,o.fimExec):'—')+')\n';
+    msg+='\n📎 PDF completo com fotos e assinaturas:\n'+link;
+    const tel=(o.tel||'').replace(/\D/g,'');
+
+    // No celular: tenta compartilhamento nativo com fotos anexadas (permite escolher WhatsApp)
+    if(navigator.share&&navigator.canShare&&o.photos&&o.photos.length){
+      try{
+        const files=[];
+        for(const p of o.photos.slice(0,10)){ // limite de 10 fotos
+          const dataUrl=typeof p==='string'?p:p.data;
+          const blob=await fetch(dataUrl).then(r=>r.blob());
+          files.push(new File([blob],'foto.jpg',{type:'image/jpeg'}));
+        }
+        if(navigator.canShare({files})){
+          await navigator.share({files,text:msg,title:o.id});
+          toast('Compartilhado!','ok');
+          return;
+        }
+      }catch(shareErr){console.log('Share nativo não disponível, usando WhatsApp Web:',shareErr)}
+    }
+
+    // Fallback: WhatsApp Web/wa.me (sem fotos anexadas, só texto+link)
+    const waUrl='https://wa.me/'+(tel?'55'+tel:'')+'?text='+encodeURIComponent(msg);
+    window.open(waUrl,'_blank');
+
+  }catch(e){
+    console.error('Compartilhar:',e);
+    toast('Erro ao compartilhar: '+e.message,'e');
+  }finally{lov(false)}
+}
+
+// ── ENVIAR PARA ESCRITÓRIO (upload direto na pasta raiz do Drive) ──
+async function enviarEscritorio(i){
+  const o=orcs[i];
+  if(!window.JSZip){toast('Aguarde o carregamento e tente novamente','e');return}
+  if(!driveToken){
+    toast('Conecte o Drive primeiro para enviar ao escritório','e');
+    connectDrive();
+    return;
+  }
+  lov(true,'Montando pacote para o escritório...');
+  try{
+    const zip=new JSZip();
+    const baseName=o.id+'_'+o.client.replace(/\s+/g,'_');
+
+    const pdfRes=await gerarPDF(i,{silent:true});
+    if(pdfRes)zip.file(pdfRes.name,pdfRes.blob);
+
+    if(o.photos&&o.photos.length){
+      const fotosFolder=zip.folder('fotos');
+      for(let f=0;f<o.photos.length;f++){
+        try{
+          const p=o.photos[f];
+          const dataUrl=typeof p==='string'?p:p.data;
+          const blob=await fetch(dataUrl).then(r=>r.blob());
+          fotosFolder.file('foto_'+(f+1)+'.jpg',blob);
+        }catch(e){console.error('foto',e)}
+      }
+    }
+    if(o.sig){try{const blob=await fetch(o.sig).then(r=>r.blob());zip.file('assinatura_cliente.png',blob)}catch(e){}}
+    if(o.sigExec){try{const blob=await fetch(o.sigExec).then(r=>r.blob());zip.file('assinatura_executor.png',blob)}catch(e){}}
+
+    const audioKey='ex_'+i;
+    if(recs[audioKey]&&recs[audioKey].length){
+      const audioFolder=zip.folder('audios');
+      for(let ai=0;ai<recs[audioKey].length;ai++){
+        try{
+          const url=recs[audioKey][ai];
+          const blob=await fetch(url).then(r=>r.blob());
+          audioFolder.file('audio_'+(ai+1)+'.webm',blob);
+        }catch(e){}
+      }
+    }
+
+    let txt='ORÇAMENTO / OS: '+o.id+'\n';
+    txt+='Cliente: '+o.client+'\nTelefone: '+(o.tel||'—')+'\nEndereço: '+(o.address||'—')+'\nData: '+o.created+'\n\n';
+    txt+='SERVIÇOS:\n';
+    o.items.forEach(it=>{txt+='  '+it.qty+'x '+it.name+' — '+brl(it.qty*it.price)+'\n'});
+    txt+='\nTotal serviços: '+brl(tot(o.items))+'\n';
+    if(o.materiais&&o.materiais.length){
+      txt+='\nMATERIAIS:\n';
+      o.materiais.forEach(m=>{txt+='  '+m.qty+'x '+m.nome+' — '+brl(m.qty*m.val)+'\n'});
+    }
+    if(o.obs)txt+='\nObservações: '+o.obs+'\n';
+    if(o.chegada)txt+='\nChegada: '+o.chegada+(o.fimExec?' | Fim: '+o.fimExec+' | Duração: '+calcDuracao(o.chegada,o.fimExec):'')+'\n';
+    txt+='\nCriado por: '+(o.createdBy||'—')+'\nEnviado ao escritório em: '+new Date().toLocaleString('pt-BR')+'\n';
+    zip.file('resumo.txt',txt);
+
+    const zipBlob=await zip.generateAsync({type:'blob'});
+    const zipName=(o.finishedAt?'OS_':'Orcamento_')+baseName+'.zip';
+
+    lov(true,'Enviando para o escritório...');
+    const meta={name:zipName,parents:[ROOT_FOLDER]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',zipBlob);
+    const res=await fetch(UPLOAD_API+'/files?uploadType=multipart',{
+      method:'POST',headers:{Authorization:'Bearer '+driveToken},body:form
+    });
+    if(!res.ok)throw new Error('Upload falhou: '+res.status);
+    const file=await res.json();
+
+    // Torna o arquivo acessível por link público
+    await fetch(DRIVE_API+'/files/'+file.id+'/permissions',{
+      method:'POST',
+      headers:{Authorization:'Bearer '+driveToken,'Content-Type':'application/json'},
+      body:JSON.stringify({role:'reader',type:'anyone'})
+    });
+
+    const link='https://drive.google.com/file/d/'+file.id+'/view?usp=sharing';
+    orcs[i].officeLink=link;
+    orcs[i].sentToOffice=new Date().toISOString();
+    autoSave();
+
+    lov(false);
+    toast('Enviado ao escritório! Pasta: 6.Orçamentos APP','ok');
+
+  }catch(e){
+    console.error('Enviar escritório:',e);
+    toast('Erro ao enviar: '+e.message,'e');
+  }finally{lov(false)}
 }
 
 // ── INIT ───────────────────────────────────────────────
@@ -1870,10 +2204,12 @@ function createAdminOrc(){
     desconto:desc,pagamento:pgto,
     validade:document.getElementById('avalidade')?.value||'30 dias',
     status:'rascunho',photos:[],sig:null,
+    audios:[...(recs['admin-novo']||[])],
     created:new Date().toLocaleDateString('pt-BR'),
     folderId:'',createdBy:vendedor,kanban:'aguardando'
   });
   adminCurItems=[];renderAdminItems();
+  recs['admin-novo']=[];
   ['acn','act','ace','acmaps'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   buildObs('obs-admin-novo','admin-novo');
   toast('Orçamento '+id+' gerado!','ok');
@@ -2181,6 +2517,8 @@ function capturarGPS(i){
 const _origSetPane=setPane;
 // Scripts loaded in head
 
+// Carrega dados salvos localmente (não depende de login/Drive)
+loadLocalData();
 renderUserList();
 </script>
 
