@@ -96,7 +96,35 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;min-height:100dv
 /* BADGES */
 .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700}
 .bp{background:#fff3cd;color:#856404}.ba{background:#cce5ff;color:#004085}
-.be{background:#d1ecf1;color:#0c5460}.bd{background:#d4edda;color:#155724}.br{background:#f8d7da;color:#721c24}
+.be{background:#d1ecf1;color:#0c5460}.bd{background:#d4edda;color:#155724}.br{background:#f8d7da;color:#721c24}.bras{background:#e2e3e5;color:#383d41}
+/* KANBAN */
+.kanban-wrap{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;min-height:400px}
+.kanban-col{min-width:220px;max-width:220px;background:#f7fafd;border-radius:10px;border:1px solid #cde0f0;display:flex;flex-direction:column}
+.kanban-col-header{padding:10px 12px;border-bottom:1px solid #cde0f0;display:flex;align-items:center;justify-content:space-between}
+.kanban-col-title{font-size:12px;font-weight:700;color:var(--dark);text-transform:uppercase;letter-spacing:.5px}
+.kanban-col-count{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:700;background:var(--dark);color:white}
+.kanban-cards{flex:1;padding:8px;display:flex;flex-direction:column;gap:7px;min-height:80px}
+.kanban-card{background:white;border:1px solid #cde0f0;border-radius:8px;padding:10px 11px;cursor:grab;transition:all .15s;position:relative}
+.kanban-card:active{cursor:grabbing;opacity:.8;transform:scale(.98)}
+.kanban-card.drag-over{border-color:var(--blue);background:var(--bl)}
+.kanban-card.dragging{opacity:.4}
+.kcard-id{font-size:10px;color:var(--gray);font-weight:600;margin-bottom:3px}
+.kcard-client{font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kcard-total{font-size:12px;color:var(--blue);font-weight:700;margin-bottom:6px}
+.kcard-date{font-size:10px;color:var(--gray)}
+.kcard-tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;margin-top:4px}
+.kcard-btns{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
+.kcard-btn{font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid #b0c8de;background:white;cursor:pointer;color:var(--dark);font-family:inherit;transition:all .15s}
+.kcard-btn:hover{background:var(--bl);border-color:var(--blue)}
+.kcard-btn.next{background:var(--dark);color:white;border-color:var(--dark)}
+.kcard-btn.finish{background:#28a745;color:white;border-color:#28a745}
+.kcard-move{font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid #b0c8de;background:white;color:var(--dark);font-family:inherit;cursor:pointer;width:100%}
+.kanban-empty{text-align:center;padding:20px 10px;color:#b0c8de;font-size:12px}
+.col-aguardando .kanban-col-count{background:#e67e22}
+.col-contato .kanban-col-count{background:#3498db}
+.col-agendado .kanban-col-count{background:#9b59b6}
+.col-execucao .kanban-col-count{background:var(--blue)}
+.col-concluido .kanban-col-count{background:#28a745}
 
 /* INFO */
 .info-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
@@ -253,8 +281,12 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
     <div class="section" id="role-admin">
       <div class="page-tabs">
         <button class="ptab active" onclick="setPane('admin','dash',this)">Dashboard</button>
+        <button class="ptab" onclick="setPane('admin','novo',this)">+ Orçamento</button>
         <button class="ptab" onclick="setPane('admin','precos',this)">Preços</button>
         <button class="ptab" onclick="setPane('admin','orcamentos',this)">Orçamentos</button>
+        <button class="ptab" onclick="setPane('admin','execucao',this)">Execução</button>
+        <button class="ptab" onclick="setPane('admin','comercial',this)">Comercial</button>
+        <button class="ptab" onclick="setPane('admin','mapa',this)">Mapa</button>
         <button class="ptab" onclick="setPane('admin','equipe',this)">Equipe</button>
       </div>
       <div class="pane active" id="admin-dash">
@@ -271,7 +303,130 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
         </div>
         <div class="btn-group"><button class="btn btn-p" onclick="savePrices()">&#128190; Salvar tabela</button></div>
       </div>
-      <div class="pane" id="admin-orcamentos"><div id="admin-orc-list"></div></div>
+      <div class="pane" id="admin-orcamentos">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="adm-fil-vendedor" onchange="renderAdmin()" style="flex:1;min-width:140px">
+            <option value="">Todos os vendedores</option>
+          </select>
+          <select id="adm-fil-status" onchange="renderAdmin()" style="flex:1;min-width:130px">
+            <option value="">Todos os status</option>
+            <option value="rascunho">Rascunho</option>
+            <option value="pendente">Pendente</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="execucao">Em execução</option>
+            <option value="concluido">Concluído</option>
+            <option value="recusado">Recusado</option>
+          </select>
+        </div>
+        <div id="admin-orc-list"></div>
+      </div>
+      <div class="pane" id="admin-novo">
+        <div class="card">
+          <div class="sl">&#128100; Dados do cliente</div>
+          <div class="g2">
+            <div class="fg"><label class="fl">Nome</label><input id="acn" placeholder="Ex: João Silva"></div>
+            <div class="fg"><label class="fl">Telefone</label><input id="act" placeholder="(54) 99999-0000"></div>
+          </div>
+          <div class="fg"><label class="fl">Endereço</label><input id="ace" placeholder="Rua, número, bairro, cidade/UF"></div>
+          <div class="fg"><label class="fl">Link Google Maps (opcional)</label><input id="acmaps" placeholder="https://maps.google.com/..."></div>
+        </div>
+        <div class="card">
+          <div class="sl">&#128295; Serviços</div>
+          <div class="ref-box"><div style="font-weight:700;color:var(--dark);margin-bottom:5px;font-size:12px">&#128203; Tabela de preços</div><table class="rt" id="areftbl"></table></div>
+          <div class="g3">
+            <div><label class="fl">Serviço</label><select id="ass"></select></div>
+            <div><label class="fl">Qtd</label><input type="number" id="asq" value="1" min="1"></div>
+            <button class="btn btn-b" onclick="addAdminItem()">+ Add</button>
+          </div>
+          <div style="margin-top:11px" id="ailist"><div class="empty" style="padding:12px">Nenhum item adicionado</div></div>
+          <div class="total-row" id="atrow" style="display:none">
+            <span style="font-size:13px;color:var(--gray);font-weight:600">Total estimado</span>
+            <span class="tv" id="atval"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sl">&#128181; Financeiro</div>
+          <div class="g2">
+            <div class="fg">
+              <label class="fl">Desconto</label>
+              <div style="display:flex;gap:6px">
+                <select id="adesc-tipo" style="width:80px">
+                  <option value="none">Nenhum</option>
+                  <option value="pct">%</option>
+                  <option value="rs">R$</option>
+                </select>
+                <input type="number" id="adesc-val" placeholder="0" min="0" style="flex:1">
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Validade do orçamento</label>
+              <select id="avalidade">
+                <option value="15 dias">15 dias</option>
+                <option value="30 dias" selected>30 dias</option>
+                <option value="45 dias">45 dias</option>
+                <option value="60 dias">60 dias</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">Forma de pagamento</label>
+            <select id="apgto-tipo" onchange="updatePgtoFields('a')">
+              <option value="avista">À vista</option>
+              <option value="parcelado">Parcelado</option>
+            </select>
+          </div>
+          <div id="apgto-avista">
+            <label class="fl">Quando</label>
+            <select id="apgto-quando">
+              <option value="Na contratação">Na contratação</option>
+              <option value="Após execução">Após execução</option>
+              <option value="Na entrega">Na entrega</option>
+              <option value="50% entrada + 50% na entrega">50% entrada + 50% na entrega</option>
+            </select>
+          </div>
+          <div id="apgto-parcelado" style="display:none">
+            <div class="g2">
+              <div class="fg"><label class="fl">Nº de parcelas</label><input type="number" id="aparcelas" value="2" min="2" max="12" onchange="updateParcelas('a')"></div>
+              <div class="fg"><label class="fl">Valor por parcela</label><input type="number" id="aparcela-val" placeholder="R$ 0,00" readonly style="background:#f7fafd"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card"><div class="sl">&#128221; Observações</div><div id="obs-admin-novo"></div></div>
+        <div class="fg"><label class="fl">Vendedor responsável</label><select id="avendedor-sel"></select></div>
+        <div class="btn-group">
+          <button class="btn btn-p" onclick="createAdminOrc()">&#128228; Gerar orçamento</button>
+          <button class="btn" onclick="clearAdminForm()">&#128465; Limpar</button>
+        </div>
+      </div>
+
+      <div class="pane" id="admin-execucao">
+        <div id="admin-exec-content"></div>
+      </div>
+
+      <div class="pane" id="admin-comercial">
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+          <select id="com-mes" onchange="renderComercial()" style="width:130px">
+          </select>
+          <select id="com-vendedor" onchange="renderComercial()" style="width:160px">
+            <option value="">Todos vendedores</option>
+          </select>
+        </div>
+        <div id="comercial-content"></div>
+      </div>
+
+      <div class="pane" id="admin-mapa">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="mapa-periodo" onchange="renderMapa()" style="width:160px">
+            <option value="todos">Todos os períodos</option>
+            <option value="mes">Este mês</option>
+            <option value="trimestre">Últimos 3 meses</option>
+          </select>
+          <span style="font-size:12px;color:var(--gray);align-self:center">Apenas OS concluídas com GPS</span>
+        </div>
+        <div id="mapa-container" style="background:#f7fafd;border:1px solid #cde0f0;border-radius:10px;padding:12px;margin-bottom:12px;min-height:300px"></div>
+        <div id="mapa-lista"></div>
+      </div>
+
       <div class="pane" id="admin-equipe">
         <div class="card">
           <div class="card-header"><span class="card-title">Equipe</span><button class="btn btn-b btn-sm" onclick="addMember()">+ Adicionar</button></div>
@@ -303,6 +458,7 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
             <div class="fg"><label class="fl">Telefone</label><input id="ct" placeholder="(54) 99999-0000"></div>
           </div>
           <div class="fg"><label class="fl">Endereço</label><input id="ce" placeholder="Rua, número, bairro, cidade/UF"></div>
+          <div class="fg"><label class="fl">Link Google Maps (opcional)</label><input id="cmaps" placeholder="https://maps.google.com/... ou coordenadas"></div>
         </div>
         <div class="card">
           <div class="sl">&#128295; Serviços</div>
@@ -316,6 +472,53 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
           <div class="total-row" id="trow" style="display:none">
             <span style="font-size:13px;color:var(--gray);font-weight:600">Total estimado</span>
             <span class="tv" id="tval"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sl">&#128181; Financeiro</div>
+          <div class="g2">
+            <div class="fg">
+              <label class="fl">Desconto</label>
+              <div style="display:flex;gap:6px">
+                <select id="desc-tipo" style="width:80px">
+                  <option value="none">Nenhum</option>
+                  <option value="pct">%</option>
+                  <option value="rs">R$</option>
+                </select>
+                <input type="number" id="desc-val" placeholder="0" min="0" style="flex:1">
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Validade</label>
+              <select id="validade">
+                <option value="15 dias">15 dias</option>
+                <option value="30 dias" selected>30 dias</option>
+                <option value="45 dias">45 dias</option>
+                <option value="60 dias">60 dias</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl">Forma de pagamento</label>
+            <select id="pgto-tipo" onchange="updatePgtoFields('v')">
+              <option value="avista">À vista</option>
+              <option value="parcelado">Parcelado</option>
+            </select>
+          </div>
+          <div id="vpgto-avista">
+            <label class="fl">Quando</label>
+            <select id="vpgto-quando">
+              <option value="Na contratação">Na contratação</option>
+              <option value="Após execução">Após execução</option>
+              <option value="Na entrega">Na entrega</option>
+              <option value="50% entrada + 50% na entrega">50% entrada + 50% na entrega</option>
+            </select>
+          </div>
+          <div id="vpgto-parcelado" style="display:none">
+            <div class="g2">
+              <div class="fg"><label class="fl">Nº de parcelas</label><input type="number" id="vparcelas" value="2" min="2" max="12" onchange="updateParcelas('v')"></div>
+              <div class="fg"><label class="fl">Valor por parcela</label><input type="number" id="vparcela-val" placeholder="Auto" readonly style="background:#f7fafd"></div>
+            </div>
           </div>
         </div>
         <div class="card"><div class="sl">&#128221; Observações</div><div id="obs-vend"></div></div>
@@ -337,28 +540,33 @@ const HB64="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABKcAAACpCAYAAAD+xV4eAA
 const FB64="data:image/png;base64,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";
 // ── STATE ──────────────────────────────────────────────
 let svcs=[
-  {id:1,name:'Ponto elétrico',unit:'ponto',price:280},
-  {id:2,name:'Tomada 20A',unit:'un',price:150},
-  {id:3,name:'Disjuntor',unit:'un',price:120},
-  {id:4,name:'Quadro de distribuição',unit:'un',price:450},
-  {id:5,name:'Ponto hidráulico',unit:'ponto',price:320},
-  {id:6,name:'Ramal de água',unit:'m',price:85},
-  {id:7,name:'Registro esfera',unit:'un',price:95},
-  {id:8,name:'Aterramento',unit:'un',price:380},
+  {id:1,name:'Limpeza módulos (0 a 10)',unit:'UN',price:150},
+  {id:2,name:'Limpeza módulos (10 a 30)',unit:'UN',price:15},
+  {id:3,name:'Limpeza módulos (30 a 60)',unit:'UN',price:12},
+  {id:4,name:'Limpeza módulos (60+)',unit:'UN',price:10},
+  {id:5,name:'Deslocamento equipe',unit:'KM',price:2},
+  {id:6,name:'Hora técnica',unit:'HR',price:150},
 ];
 let orcs=[
-  {id:'ORC-001',client:'Maria Aparecida',tel:'(54) 99810-2233',address:'Rua das Flores, 42',items:[{name:'Ponto elétrico',qty:3,price:280},{name:'Tomada 20A',qty:2,price:150}],obs:'Prazo: 5 dias úteis.',status:'pendente',photos:[],sig:null,created:'10/08/2025',folderId:''},
-  {id:'ORC-002',client:'Carlos Eduardo Müller',tel:'(54) 98765-4321',address:'Av. Brasil, 1200',items:[{name:'Ponto hidráulico',qty:2,price:320},{name:'Registro esfera',qty:3,price:95}],obs:'Confirmar materiais.',status:'aprovado',photos:[],sig:null,created:'11/08/2025',folderId:''},
+  {id:'ORC-001',client:'Luan',tel:'',address:'',mapsLink:'',
+   items:[{name:'Hora técnica',unit:'HR',qty:1,price:150}],
+   obs:'Ambiente teste',
+   desconto:{tipo:'none',val:0,final:150},
+   pagamento:{tipo:'À vista',descricao:'Após execução'},
+   validade:'30 dias',
+   status:'aprovado',photos:[],sig:null,
+   created:'12/08/2026',folderId:'',
+   createdBy:'Luan',kanban:'aguardando'},
 ];
 let team=[
-  {name:'Lucas',role:'admin',color:'#1D3140',initials:'LU'},
-  {name:'Luan',role:'admin',color:'#2d4a60',initials:'LA'},
-  {name:'Jozé A. Klein Oliveira',role:'vendedor',color:'#64ABDE',initials:'JK'},
+  {name:'Lucas',role:'admin',color:'#1D3140',initials:'LU',pin:'1234'},
+  {name:'Luan',role:'admin',color:'#2d4a60',initials:'LA',pin:'1234'},
+  {name:'Jozé A. Klein Oliveira',role:'vendedor',color:'#64ABDE',initials:'JK',pin:'1234'},
 ];
 let adminPin=localStorage.getItem('on_admin_pin')||'1234';
 let currentUser=null;
 let pendingAdminUser=null;
-let cur=[],nid=3,mrs={},recs={vend:[]},arec=null;
+let cur=[],nid=2,mrs={},recs={vend:[]},arec=null;
 // ── HELPERS ────────────────────────────────────────────
 const brl=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const tot=items=>items.reduce((a,i)=>a+i.qty*i.price,0);
@@ -431,10 +639,15 @@ function showPinModal(name){
 function closePinModal(){document.getElementById('pin-modal').classList.remove('show');pendingAdminUser=null}
 function checkPin(){
   const val=document.getElementById('pin-input').value;
-  if(val.length>=adminPin.length){
-    if(val===adminPin){
+  if(!pendingAdminUser)return;
+  const u=pendingAdminUser;
+  // Use user's own pin; fallback to adminPin for admins without pin set
+  const correctPin=u.pin||(u.role==='admin'?adminPin:null);
+  if(!correctPin){loginAs(u);closePinModal();return}
+  if(val.length>=correctPin.length){
+    if(val===correctPin){
       document.getElementById('pin-modal').classList.remove('show');
-      loginAs(pendingAdminUser);pendingAdminUser=null;
+      loginAs(u);pendingAdminUser=null;
     } else {
       document.getElementById('pin-err').textContent='PIN incorreto. Tente novamente.';
       document.getElementById('pin-input').value='';
@@ -447,6 +660,9 @@ function changePin(){
   if(np.length<4){toast('PIN deve ter ao menos 4 dígitos','e');return}
   if(np!==cp){toast('PINs não conferem','e');return}
   adminPin=np;localStorage.setItem('on_admin_pin',np);
+  // Sync to current user's pin in team
+  const idx=team.findIndex(u=>u.name===currentUser?.name);
+  if(idx>=0)team[idx].pin=np;
   document.getElementById('new-pin').value='';document.getElementById('conf-pin').value='';
   toast('PIN alterado com sucesso!','ok');
 }
@@ -454,30 +670,46 @@ function changePin(){
 // EQUIPE
 function renderTeam(){
   document.getElementById('team-list').innerHTML=team.map((u,i)=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--line)">
-      <div class="user-avatar" style="background:${u.color};color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${u.initials}</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid var(--line)">
+      <div class="user-avatar" style="background:${u.color};color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0">${u.initials}</div>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:600;color:var(--dark)">${u.name}</div>
-        <div style="font-size:11px;color:var(--gray)">${u.role==='admin'?'Admin':u.role==='vendedor'?'Vendedor':'Execução'}</div>
+        <div style="font-size:11px;color:var(--gray)">${u.role==='admin'?'Admin':u.role==='vendedor'?'Vendedor':'Execução'} • PIN: ${u.pin?'••••':'não definido'}</div>
       </div>
+      <button class="btn btn-b btn-sm" onclick="resetPin(${i})" style="font-size:11px">🔑 PIN</button>
       ${i>0?`<button class="btn btn-d btn-sm" onclick="removeMember(${i})">&#10005;</button>`:''}
     </div>`).join('');
+}
+
+function resetPin(i){
+  const u=team[i];
+  const novoPin=prompt('Novo PIN para '+u.name+' (4 dígitos):','');
+  if(!novoPin)return;
+  if(novoPin.length!==4||isNaN(novoPin)){toast('PIN deve ter exatamente 4 números','e');return}
+  team[i].pin=novoPin;
+  // Also update adminPin if admin
+  if(u.role==='admin'&&i===0)adminPin=novoPin;
+  renderTeam();autoSave();
+  toast('PIN de '+u.name+' atualizado!','ok');
 }
 function addMember(){
   document.getElementById('add-member-modal').style.display='flex';
   document.getElementById('new-member-name').value='';
   document.getElementById('new-member-role').value='vendedor';
+  const pinEl=document.getElementById('new-member-pin');if(pinEl)pinEl.value='';
   setTimeout(()=>document.getElementById('new-member-name').focus(),100);
 }
 function confirmAddMember(){
   const name=document.getElementById('new-member-name').value.trim();
   const role=document.getElementById('new-member-role').value;
-  if(!name){alert('Digite o nome');return}
+  const pin=document.getElementById('new-member-pin')?.value||'';
+  if(!name){toast('Digite o nome','e');return}
+  if(!pin||pin.length<4){toast('PIN deve ter 4 dígitos','e');return}
   const colors={admin:'#1D3140',vendedor:'#64ABDE',exec:'#28a745'};
   const initials=name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
-  team.push({name,role,color:colors[role],initials});
+  team.push({name,role,color:colors[role],initials,pin});
   document.getElementById('add-member-modal').style.display='none';
-  renderTeam();renderUserList();
+  renderTeam();renderUserList();autoSave();
   toast(name+' adicionado!','ok');
 }
 function cancelAddMember(){document.getElementById('add-member-modal').style.display='none'}
@@ -497,20 +729,25 @@ function setPane(role,pane,btn){
   if(role==='admin'&&pane==='precos')renderPT();
   if(role==='admin'&&pane==='orcamentos')renderAdmin();
   if(role==='admin'&&pane==='equipe')renderTeam();
+  if(role==='admin'&&pane==='novo')initAdminNovo();
+  if(role==='admin'&&pane==='execucao')renderAdminExec();
+  if(role==='admin'&&pane==='comercial')initComercial();
+  if(role==='admin'&&pane==='mapa')renderMapa();
   if(role==='vendedor'&&pane==='lista')renderVL();
   if(role==='vendedor'&&pane==='novo'){renderSel();renderRef();buildObs('obs-vend','vend')}
 }
 
 // ── DASHBOARD ──────────────────────────────────────────
 function renderDash(){
-  const pendentes=orcs.filter(o=>o.status==='pendente').length;
+  const pendentes=orcs.filter(o=>o.status==='pendente').length;const rascunhos=orcs.filter(o=>o.status==='rascunho').length;
   const aprovados=orcs.filter(o=>o.status==='aprovado'||o.status==='execucao').length;
   const concluidos=orcs.filter(o=>o.status==='concluido').length;
   const recusados=orcs.filter(o=>o.status==='recusado').length;
   const totalVal=tot(orcs.filter(o=>o.status!=='recusado').flatMap(o=>o.items));
   const emAberto=tot(orcs.filter(o=>['pendente','aprovado','execucao'].includes(o.status)).flatMap(o=>o.items));
   document.getElementById('dash-grid').innerHTML=`
-    <div class="dash-card"><div class="dash-num orange">${pendentes}</div><div class="dash-label">&#9203; Pendentes</div></div>
+    <div class="dash-card"><div class="dash-num" style="color:#6c757d">${rascunhos}</div><div class="dash-label">&#128221; Rascunhos</div></div>
+    <div class="dash-card"><div class="dash-num orange">${pendentes}</div><div class="dash-label">&#9203; Aguard. aprovação</div></div>
     <div class="dash-card"><div class="dash-num blue">${aprovados}</div><div class="dash-label">&#9989; Em andamento</div></div>
     <div class="dash-card"><div class="dash-num green">${concluidos}</div><div class="dash-label">&#127881; Concluídos</div></div>
     <div class="dash-card"><div class="dash-num red">${recusados}</div><div class="dash-label">&#10060; Recusados</div></div>
@@ -613,10 +850,18 @@ function createOrc(){
   if(!nome||!cur.length){toast('Preencha cliente e serviços','e');return}
   const obs=document.getElementById('vend-tx')?.value||'';
   const id='ORC-0'+String(nid++).padStart(2,'0');
-  const orc={id,client:nome,tel:document.getElementById('ct').value,address:document.getElementById('ce').value,
-    items:[...cur],obs,status:'pendente',photos:[],sig:null,
+  const totalBruto=tot(cur);
+  const desc=getDesconto('v',totalBruto);
+  const pgto=getPgtoInfo('v');
+  const orc={id,client:nome,tel:document.getElementById('ct').value,
+    address:document.getElementById('ce').value,
+    mapsLink:document.getElementById('cmaps')?.value||'',
+    items:[...cur],obs,
+    desconto:desc,pagamento:pgto,
+    validade:document.getElementById('validade')?.value||'30 dias',
+    status:'rascunho',photos:[],sig:null,
     created:new Date().toLocaleDateString('pt-BR'),folderId:'',
-    createdBy:currentUser?.name||'—'};
+    createdBy:currentUser?.name||'—',kanban:'aguardando'};
   orcs.push(orc);
   cur=[];recs['vend']=[];renderItems();
   ['cn','ct','ce'].forEach(id=>document.getElementById(id).value='');
@@ -625,37 +870,129 @@ function createOrc(){
   // Criar pasta no Drive para este orçamento
   createOrcFolder(orcs.length-1);
 }
-function clearForm(){cur=[];recs['vend']=[];renderItems();['cn','ct','ce'].forEach(id=>document.getElementById(id).value='');buildObs('obs-vend','vend')}
+function clearForm(){
+  cur=[];recs['vend']=[];renderItems();
+  ['cn','ct','ce','cmaps','desc-val'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  const dt=document.getElementById('desc-tipo');if(dt)dt.value='none';
+  const pt=document.getElementById('pgto-tipo');if(pt){pt.value='avista';updatePgtoFields('v')}
+  buildObs('obs-vend','vend');
+}
 
 // ── BADGES ─────────────────────────────────────────────
 function badge(s){
-  const m={pendente:'bp',aprovado:'ba',execucao:'be',concluido:'bd',recusado:'br'};
-  const l={pendente:'Pendente',aprovado:'Aprovado',execucao:'Em execução',concluido:'Concluído',recusado:'Recusado'};
+  const m={rascunho:'bras',pendente:'bp',aprovado:'ba',execucao:'be',concluido:'bd',recusado:'br'};
+  const l={rascunho:'Rascunho',pendente:'Aguard. aprovação',aprovado:'Aprovado',execucao:'Em execução',concluido:'Concluído',recusado:'Recusado'};
   return `<span class="badge ${m[s]||'bp'}">${l[s]||s}</span>`;
 }
 
 // ── ADMIN ORC ──────────────────────────────────────────
 function renderAdmin(){
   const el=document.getElementById('admin-orc-list');
-  el.innerHTML=!orcs.length?'<div class="empty">Nenhum orçamento</div>':orcs.slice().reverse().map((o,ri)=>{
+  // Populate vendedor filter
+  const filVend=document.getElementById('adm-fil-vendedor');
+  if(filVend){
+    const atual=filVend.value;
+    const vendedores=[...new Set(orcs.map(o=>o.createdBy||'—').filter(Boolean))];
+    filVend.innerHTML='<option value="">Todos os vendedores</option>'+vendedores.map(v=>`<option value="${v}" ${atual===v?'selected':''}>${v}</option>`).join('');
+  }
+  const filtVend=filVend?.value||'';
+  const filtStatus=document.getElementById('adm-fil-status')?.value||'';
+
+  const lista=orcs.slice().reverse().filter(o=>{
+    if(filtVend&&o.createdBy!==filtVend)return false;
+    if(filtStatus&&o.status!==filtStatus)return false;
+    return true;
+  });
+
+  el.innerHTML=!lista.length?'<div class="empty">Nenhum orçamento encontrado</div>':lista.map(o=>{
     const i=orcs.indexOf(o);
     return `<div class="card" id="orc-card-${i}">
       <div class="card-header"><span class="card-title">${o.id} — ${o.client}</span>${badge(o.status)}</div>
       <div class="info-row"><span class="il">Por</span><span class="iv">${o.createdBy||'—'}</span></div>
       <div class="info-row"><span class="il">Endereço</span><span class="iv">${o.address||'—'}</span></div>
-      <div class="info-row"><span class="il">Total</span><span class="iv" style="color:var(--blue);font-size:15px">${brl(tot(o.items))}</span></div>
+      <div class="info-row"><span class="il">Total bruto</span><span class="iv" style="color:var(--blue);font-size:15px">${brl(tot(o.items))}</span></div>
+      ${o.desconto&&o.desconto.tipo!=='none'?`<div class="info-row"><span class="il">Desconto</span><span class="iv" style="color:#dc3545">-${o.desconto.tipo==='%'?o.desconto.val+'%':'R$ '+o.desconto.val} = ${brl(o.desconto.final)}</span></div>`:''}
+      ${o.pagamento?`<div class="info-row"><span class="il">Pagamento</span><span class="iv">${o.pagamento.tipo} — ${o.pagamento.descricao}</span></div>`:''}
+      ${o.validade?`<div class="info-row"><span class="il">Validade</span><span class="iv">${o.validade}</span></div>`:''}
+      ${o.mapsLink?`<div class="info-row"><span class="il">Localização</span><span class="iv"><a href="${o.mapsLink}" target="_blank" style="color:var(--blue)">📍 Ver no Maps</a></span></div>`:''}
       <div class="info-row"><span class="il">Criado</span><span class="iv">${o.created}</span></div>
       ${o.obs?`<div style="font-size:12px;color:var(--gray);margin-top:7px;padding:7px 10px;background:white;border-radius:6px;border-left:3px solid var(--blue)">${o.obs}</div>`:''}
       ${o.folderId?`<div class="drive-info">&#128194; Pasta no Drive criada</div>`:''}
       <div class="btn-group">
+        ${o.status==='rascunho'?`<button class="btn btn-ok btn-sm" onclick="approve(${i})">&#10003; Aprovar</button>`:''}
         ${o.status==='pendente'?`<button class="btn btn-ok btn-sm" onclick="approve(${i})">&#10003; Aprovar</button><button class="btn btn-d btn-sm" onclick="reject(${i})">&#10005; Recusar</button>`:''}
-        <button class="btn btn-sm" onclick="editOrc(${i})" style="margin-left:auto">&#9998; Editar</button>
+        <button class="btn btn-b btn-sm" onclick="verOrc(${i})">&#128065; Ver</button>
+        <button class="btn btn-sm" onclick="editOrc(${i})">&#9998; Editar</button>
         <button class="btn btn-d btn-sm" onclick="deleteOrc(${i})">&#128465; Excluir</button>
       </div>
     </div>`;
   }).join('');
 }
-function approve(i){orcs[i].status='aprovado';renderAdmin();renderDash();toast('Aprovado!','ok');autoSave()}
+function verOrc(i){
+  const o=orcs[i];
+  const modal=document.getElementById('ver-modal');
+  const body=document.getElementById('ver-modal-body');
+  if(!modal||!body)return;
+  modal.style.display='flex';
+  body.innerHTML=`
+    <div style="background:white;border-radius:14px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;padding:18px;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark)">${o.id} — ${o.client}</div>
+          <div style="font-size:11px;color:var(--gray)">Criado por ${o.createdBy||'—'} em ${o.created||'—'}</div>
+        </div>
+        ${badge(o.status)}
+        <button onclick="document.getElementById('ver-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray);margin-left:8px">✕</button>
+      </div>
+
+      <div class="sl">👤 Cliente</div>
+      <div class="info-row"><span class="il">Nome</span><span class="iv">${o.client||'—'}</span></div>
+      <div class="info-row"><span class="il">Telefone</span><span class="iv">${o.tel||'—'}</span></div>
+      <div class="info-row"><span class="il">Endereço</span><span class="iv">${o.address||'—'}</span></div>
+      ${o.mapsLink?`<div class="info-row"><span class="il">Maps</span><span class="iv"><a href="${o.mapsLink}" target="_blank" style="color:var(--blue)">📍 Ver localização</a></span></div>`:''}
+
+      <div class="sl" style="margin-top:10px">🔧 Serviços</div>
+      ${o.items.map(it=>`<div class="info-row"><span class="il">${it.qty}× ${it.name}</span><span class="iv" style="color:var(--blue);font-weight:700">${brl(it.qty*it.price)}</span></div>`).join('')}
+      <div class="info-row" style="border-top:2px solid var(--bm);margin-top:6px;padding-top:6px">
+        <span class="il" style="font-weight:700">Total bruto</span>
+        <span class="iv" style="font-size:16px;font-weight:700;color:var(--blue)">${brl(tot(o.items))}</span>
+      </div>
+
+      ${o.desconto&&o.desconto.tipo!=='none'?`
+      <div class="sl" style="margin-top:10px">💰 Financeiro</div>
+      <div class="info-row"><span class="il">Desconto</span><span class="iv" style="color:#dc3545">-${o.desconto.tipo==='%'?o.desconto.val+'%':'R$ '+o.desconto.val} → ${brl(o.desconto.final)}</span></div>
+      `:''}
+      ${o.pagamento?`<div class="info-row"><span class="il">Pagamento</span><span class="iv">${o.pagamento.tipo} — ${o.pagamento.descricao}</span></div>`:''}
+      ${o.validade?`<div class="info-row"><span class="il">Validade</span><span class="iv">${o.validade}</span></div>`:''}
+
+      ${o.obs?`<div class="sl" style="margin-top:10px">📝 Observações</div>
+      <div style="font-size:13px;color:var(--gray);padding:8px 10px;background:#f7fafd;border-radius:7px;border-left:3px solid var(--blue)">${o.obs}</div>`:''}
+
+      ${o.photos&&o.photos.length?`<div class="sl" style="margin-top:10px">📷 Fotos (${o.photos.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${o.photos.map(p=>`<img src="${p}" style="width:80px;height:80px;object-fit:cover;border-radius:7px;border:1px solid #cde0f0">`).join('')}</div>`:''}
+
+      <div class="btn-group" style="margin-top:14px">
+        ${o.status==='pendente'?`<button class="btn btn-ok btn-sm" onclick="approve(${i});document.getElementById('ver-modal').style.display='none'">✓ Aprovar</button>
+        <button class="btn btn-d btn-sm" onclick="reject(${i});document.getElementById('ver-modal').style.display='none'">✕ Recusar</button>`:''}
+        <button class="btn btn-sm" onclick="document.getElementById('ver-modal').style.display='none';editOrc(${i})">✏️ Editar</button>
+        <button class="btn btn-sm" onclick="document.getElementById('ver-modal').style.display='none'" style="margin-left:auto">Fechar</button>
+      </div>
+    </div>`;
+}
+
+function approve(i){
+  // Check if has maps link, if not ask
+  if(!orcs[i].mapsLink){
+    const link=prompt('Adicionar localização (Google Maps) antes de enviar para execução?\nDeixe em branco para pular:','');
+    if(link)orcs[i].mapsLink=link;
+  }
+  orcs[i].status='aprovado';
+  orcs[i].kanban=orcs[i].kanban||'aguardando';
+  renderAdmin();renderDash();
+  toast('Aprovado! OS enviada para execução.','ok');
+  if(driveToken)createOrcFolder(i);
+  else autoSave();
+}
 function reject(i){orcs[i].status='recusado';renderAdmin();renderDash();toast('Recusado.');autoSave()}
 function deleteOrc(i){
   if(!confirm('Excluir o orçamento '+orcs[i].id+' — '+orcs[i].client+'?\nEsta ação não pode ser desfeita.'))return;
@@ -708,68 +1045,250 @@ function closeEdit(){document.getElementById('edit-modal').style.display='none'}
 
 // ── VENDEDOR LIST ──────────────────────────────────────
 function renderVL(){
-  const myOrcs=orcs.filter(o=>!currentUser||o.createdBy===currentUser.name||true);
   const el=document.getElementById('vlist');
-  el.innerHTML=!myOrcs.length?'<div class="empty">Nenhum orçamento</div>':myOrcs.slice().reverse().map(o=>`<div class="card">
-    <div class="card-header"><span class="card-title">${o.id} — ${o.client}</span>${badge(o.status)}</div>
-    <div class="info-row"><span class="il">Total</span><span class="iv" style="color:var(--blue)">${brl(tot(o.items))}</span></div>
-    <div class="info-row"><span class="il">Criado</span><span class="iv">${o.created}</span></div>
-  </div>`).join('');
+  const myOrcs=orcs.filter(o=>o.createdBy===currentUser?.name);
+  if(!myOrcs.length){el.innerHTML='<div class="empty">Nenhum orçamento criado por você</div>';return}
+  el.innerHTML=myOrcs.slice().reverse().map(o=>{
+    const i=orcs.indexOf(o);
+    return '<div class="card">'
+      +'<div class="card-header"><span class="card-title">'+o.id+' — '+o.client+'</span>'+badge(o.status)+'</div>'
+      +'<div class="info-row"><span class="il">Total</span><span class="iv" style="color:var(--blue)">'+brl(tot(o.items))+'</span></div>'
+      +'<div class="info-row"><span class="il">Criado</span><span class="iv">'+o.created+'</span></div>'
+      +(o.obs?'<div style="font-size:12px;color:var(--gray);margin-top:6px;padding:7px 10px;background:#f0f7fd;border-radius:6px;border-left:3px solid var(--blue)">'+o.obs+'</div>':'')
+      +(o.status==='rascunho'?'<div class="btn-group"><button class="btn btn-p btn-sm" onclick="enviarParaAdmin('+i+')">&#128228; Enviar para aprovação</button></div>':'')
+      +(o.status==='pendente'?'<div style="font-size:12px;color:#856404;margin-top:8px;padding:7px 10px;background:#fff3cd;border-radius:6px">&#9203; Aguardando aprovação do Admin</div>':'')
+      +'</div>';
+  }).join('');
+}
+function enviarParaAdmin(i){
+  orcs[i].status='pendente';
+  renderVL();
+  toast('Enviado para aprovação!','ok');
+  autoSave();
 }
 
 // ── EXECUÇÃO ───────────────────────────────────────────
+// Kanban columns config
+const KANBAN_COLS=[
+  {key:'aguardando',label:'Aguardando contato',cls:'col-aguardando'},
+  {key:'contato',label:'Contato feito',cls:'col-contato'},
+  {key:'agendado',label:'Agendado',cls:'col-agendado'},
+  {key:'execucao',label:'Em execução',cls:'col-execucao'},
+  {key:'concluido',label:'Concluído',cls:'col-concluido'},
+];
+
+function getKanbanStatus(o){
+  // Map orc status to kanban column
+  if(o.kanban)return o.kanban;
+  if(o.status==='concluido')return'concluido';
+  if(o.status==='execucao')return'execucao';
+  return'aguardando';
+}
+
+function kanbanOpts(curKey){
+  const cols=[
+    {key:'aguardando',label:'📋 Aguardando contato'},
+    {key:'contato',label:'📞 Contato feito'},
+    {key:'agendado',label:'📅 Agendado'},
+    {key:'execucao',label:'⚙️ Em execução'},
+    {key:'concluido',label:'✅ Concluído'}
+  ];
+  return cols.map(c=>'<option value="'+c.key+'"'+(c.key===curKey?' selected':'')+'>'+c.label+'</option>').join('');
+}
+
+function moveKanban(i,newCol){
+  orcs[i].kanban=newCol;
+  if(newCol==='execucao')orcs[i].status='execucao';
+  if(newCol==='concluido')orcs[i].status='concluido';
+  renderExec();
+  autoSave();
+}
+
 function renderExec(){
   const el=document.getElementById('oslist');
   const list=orcs.filter(o=>['aprovado','execucao','concluido'].includes(o.status));
   if(!list.length){el.innerHTML='<div class="empty">Nenhuma OS disponível</div>';return}
-  el.innerHTML=list.map(o=>{
-    const i=orcs.indexOf(o);const rk='ex_'+i;if(!recs[rk])recs[rk]=[];
-    return `<div class="card">
-      <div class="card-header"><div><div class="card-title">OS: ${o.id}</div><div style="font-size:11px;color:var(--gray)">${o.created}</div></div>${badge(o.status)}</div>
-      <div class="sl">&#128100; Cliente</div>
-      <div class="info-row"><span class="il">Nome</span><span class="iv">${o.client}</span></div>
-      <div class="info-row"><span class="il">Tel.</span><span class="iv">${o.tel||'—'}</span></div>
-      <div class="info-row"><span class="il">Endereço</span><span class="iv">${o.address||'—'}</span></div>
-      <div class="div"></div>
-      <div class="sl">&#128295; Serviços</div>
-      ${o.items.map(it=>`<div class="info-row"><span class="il">${it.qty}× ${it.name}</span><span class="iv" style="color:var(--blue)">${brl(it.qty*it.price)}</span></div>`).join('')}
-      <div class="total-row"><span style="font-size:13px;color:var(--gray);font-weight:600">Total</span><span class="tv">${brl(tot(o.items))}</span></div>
-      ${o.obs?`<div style="font-size:12px;color:var(--gray);margin-top:8px;padding:8px 10px;background:#f0f7fd;border-radius:6px;border-left:3px solid var(--blue)">&#128203; ${o.obs}</div>`:''}
-      <div class="div"></div>
-      <div class="sl">&#128247; Fotos da execução</div>
-      <div class="photo-area">
-        <div class="photo-grid-flex" id="pg-${i}"></div>
-        ${o.status!=='concluido'?`<label style="cursor:pointer"><div class="photo-add"><span>📷</span><span>Adicionar foto</span></div><input type="file" accept="image/*" capture="environment" style="display:none" onchange="addPhoto(${i},this)"></label>`:''}
-      </div>
-      <div class="div"></div>
-      <div class="sl">&#128221; Observações da execução</div>
-      <div id="oe-${i}"></div>
-      <div class="div"></div>
-      <div class="sl">&#9999; Assinatura do cliente</div>
-      <p style="font-size:12px;color:var(--gray);margin-bottom:8px">O cliente assina confirmando a conclusão do serviço.</p>
-      <div class="sig-wrap">
-        <div class="sig-tb">
-          <span>${o.sig?'&#9989; Assinatura coletada':'Assine com o dedo ou mouse'}</span>
-          <button class="btn btn-sm" onclick="clearSig(${i})">&#129529; Limpar</button>
-        </div>
-        <canvas class="sc" id="sig-${i}" width="620" height="130" style="height:130px"></canvas>
-      </div>
-      ${o.status!=='concluido'
-        ?`<div class="btn-group"><button class="btn btn-p" onclick="finishOS(${i})">&#9989; Finalizar OS</button></div>`
-        :`<div class="btn-group">
-            <div style="display:flex;align-items:center;gap:5px;font-size:13px;color:#155724;font-weight:700;padding:8px 12px;background:#d4edda;border-radius:7px">&#9989; OS finalizada</div>
-            <button class="btn-pdf" onclick="gerarPDF(${i})">&#128196; PDF</button>
-            <button class="btn-wa" onclick="enviarWA(${i})">&#128172; WhatsApp</button>
-          </div>`
-      }
-    </div>`;
-  }).join('');
-  list.forEach(o=>{
-    const i=orcs.indexOf(o);
-    buildObs(`oe-${i}`,'ex_'+i);
-    initSig(i,o);
-    renderPhotos(i);
+
+  // Build Kanban board
+  const cols={};
+  KANBAN_COLS.forEach(c=>cols[c.key]=[]);
+  list.forEach(o=>{const col=getKanbanStatus(o);if(cols[col])cols[col].push(o);});
+
+  el.innerHTML='<div class="kanban-wrap" id="kanban-board">'+KANBAN_COLS.map(col=>{
+    const cards=cols[col.key];
+    const colIdx=KANBAN_COLS.indexOf(col);
+    return '<div class="kanban-col '+col.cls+'" data-col="'+col.key+'" ondragover="event.preventDefault()" ondrop="dropCard(event,\''+col.key+'\')">'
+      +'<div class="kanban-col-header">'
+      +'<span class="kanban-col-title">'+col.label+'</span>'
+      +'<span class="kanban-col-count">'+cards.length+'</span>'
+      +'</div>'
+      +'<div class="kanban-cards">'
+      +(cards.length?cards.map(o=>{
+        const i=orcs.indexOf(o);
+        const prevCol=colIdx>0?KANBAN_COLS[colIdx-1].key:null;
+        const nextCol=colIdx<KANBAN_COLS.length-1?KANBAN_COLS[colIdx+1].key:null;
+        return '<div class="kanban-card" draggable="true" data-idx="'+i+'" '
+          +'ondragstart="dragStart(event,'+i+')" ondragend="dragEnd(event)" '
+          +'ontouchstart="touchDragStart(event,'+i+')" ontouchmove="touchDragMove(event)" ontouchend="touchDragEnd(event)" '
+          +'onclick="if(!touchMoved)openOS('+i+')">'
+          +'<div class="kcard-id">'+o.id+' · '+o.created+'</div>'
+          +'<div class="kcard-client">'+o.client+'</div>'
+          +'<div class="kcard-total">'+brl(tot(o.items))+'</div>'
+          +(o.tel?'<div class="kcard-date">📞 '+o.tel+'</div>':'')
+          +(o.mapsLink?'<a href="'+o.mapsLink+'" target="_blank" class="kcard-tag" style="background:#e8f3fb;color:var(--blue);text-decoration:none">📍 Ver no Maps</a>':'')
+          +(o.gpsExec?'<div class="kcard-date" style="color:#28a745">📡 GPS capturado</div>':'')
+          +'<div class="kcard-btns" onclick="event.stopPropagation()">'
+          +'<select class="kcard-move" onchange="moveKanban('+i+',this.value)" title="Mover para...">'
+          +'<option value="aguardando"'+(col.key==='aguardando'?' selected':'')+'>📋 Aguardando</option>'
+          +'<option value="contato"'+(col.key==='contato'?' selected':'')+'>📞 Contato feito</option>'
+          +'<option value="agendado"'+(col.key==='agendado'?' selected':'')+'>📅 Agendado</option>'
+          +'<option value="execucao"'+(col.key==='execucao'?' selected':'')+'>⚙️ Em execução</option>'
+          +'<option value="concluido"'+(col.key==='concluido'?' selected':'')+'>✅ Concluído</option>'
+          +'</select>'
+          +(col.key==='execucao'||col.key==='concluido'?'<button class="kcard-btn finish" onclick="openOS('+i+')">✅ OS</button>':'')
+          +'</div>'
+          +'</div>';
+      }).join(''):'<div class="kanban-empty">Sem OS</div>')
+      +'</div></div>';
+  }).join('')+'</div>'
+  // OS Detail Modal button
+  +''; // os-detail is a permanent body element
+}
+
+// Drag and drop
+// Touch drag support
+let touchDragIdx=null,touchClone=null,touchStartX=0,touchStartY=0,touchMoved=false;
+
+function dragStart(e,i){dragIdx=i;setTimeout(()=>e.target.classList.add('dragging'),0)}
+function dragEnd(e){e.target.classList.remove('dragging');dragIdx=null}
+function dropCard(e,col){e.preventDefault();if(dragIdx!==null){moveKanban(dragIdx,col)}}
+
+function touchDragStart(e,i){
+  touchDragIdx=i;touchMoved=false;
+  touchStartX=e.touches[0].clientX;
+  touchStartY=e.touches[0].clientY;
+  const card=e.currentTarget;
+  touchClone=card.cloneNode(true);
+  Object.assign(touchClone.style,{position:'fixed',zIndex:'9999',opacity:'.85',
+    pointerEvents:'none',width:card.offsetWidth+'px',
+    boxShadow:'0 8px 24px rgba(0,0,0,.2)',borderRadius:'10px',transition:'none'});
+  touchClone.style.left=(touchStartX-card.offsetWidth/2)+'px';
+  touchClone.style.top=(touchStartY-40)+'px';
+  document.body.appendChild(touchClone);
+}
+function touchDragMove(e){
+  if(touchDragIdx===null)return;
+  e.preventDefault();
+  const x=e.touches[0].clientX,y=e.touches[0].clientY;
+  if(Math.abs(x-touchStartX)>8||Math.abs(y-touchStartY)>8)touchMoved=true;
+  if(touchClone){
+    touchClone.style.left=(x-touchClone.offsetWidth/2)+'px';
+    touchClone.style.top=(y-40)+'px';
+  }
+  document.querySelectorAll('.kanban-col').forEach(col=>{
+    const r=col.getBoundingClientRect();
+    col.style.background=(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom)?'#d4eaf7':'';
   });
+}
+function touchDragEnd(e){
+  if(touchClone){touchClone.remove();touchClone=null}
+  document.querySelectorAll('.kanban-col').forEach(col=>col.style.background='');
+  if(touchDragIdx===null)return;
+  if(!touchMoved){touchDragIdx=null;return}
+  const x=e.changedTouches[0].clientX,y=e.changedTouches[0].clientY;
+  document.querySelectorAll('.kanban-col').forEach(col=>{
+    const r=col.getBoundingClientRect();
+    if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom){
+      moveKanban(touchDragIdx,col.dataset.col);
+    }
+  });
+  touchDragIdx=null;touchMoved=false;
+}
+
+// Open OS detail
+function openOS(i){
+  const o=orcs[i];const rk='ex_'+i;if(!recs[rk])recs[rk]=[];
+  const modal=document.getElementById('os-detail');
+  modal.style.display='block';
+  modal.innerHTML='<div style="position:fixed;inset:0;background:rgba(29,49,64,.7);z-index:9990;overflow-y:auto;padding:16px" onclick="if(event.target===this)closeOS()">'
+    +'<div style="background:white;border-radius:12px;max-width:600px;margin:auto;padding:16px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<div><div style="font-size:15px;font-weight:700;color:var(--dark)">OS: '+o.id+' — '+o.client+'</div>'
+    +'<div style="font-size:11px;color:var(--gray)">'+o.created+'</div></div>'
+    +'<button onclick="closeOS()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray)">✕</button>'
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:7px">👤 Cliente</div>'
+    +'<div style="font-size:13px;margin-bottom:3px"><b>'+o.client+'</b></div>'
+    +(o.tel?'<div style="font-size:13px;color:var(--gray);margin-bottom:3px">📞 '+o.tel+'</div>':'')
+    +(o.address?'<div style="font-size:13px;color:var(--gray);margin-bottom:10px">📍 '+o.address+'</div>':'')
+    +'<div style="height:.5px;background:#dce8f3;margin:10px 0"></div>'
+    +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:7px">🔧 Serviços</div>'
+    +o.items.map(it=>'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>'+it.qty+'× '+it.name+'</span><span style="color:var(--blue);font-weight:700">'+brl(it.qty*it.price)+'</span></div>').join('')
+    +'<div style="display:flex;justify-content:space-between;padding:9px 0 0;border-top:2px solid var(--bm);margin-top:8px"><span style="font-size:13px;font-weight:600;color:var(--gray)">Total</span><span style="font-size:17px;font-weight:800;color:var(--dark)">'+brl(tot(o.items))+'</span></div>'
+    +(o.obs?'<div style="font-size:12px;color:var(--gray);margin-top:8px;padding:8px 10px;background:#f0f7fd;border-radius:6px;border-left:3px solid var(--blue)">'+o.obs+'</div>':'')
+    +'<div style="height:.5px;background:#dce8f3;margin:12px 0"></div>'
+    +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:7px">📸 Fotos</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px" id="os-photos-'+i+'"></div>'
+    +(o.status!=='concluido'?'<label style="cursor:pointer"><div class="photo-add" style="width:80px;height:80px"><span>📷</span><span style="font-size:10px">Adicionar</span></div><input type="file" accept="image/*" capture="environment" style="display:none" onchange="addPhoto('+i+',this)"></label>':'')
+    +'<div style="height:.5px;background:#dce8f3;margin:12px 0"></div>'
+    +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px">📝 Observações</div>'
+    +'<div id="oe-modal-'+i+'"></div>'
+    +'<div style="height:.5px;background:#dce8f3;margin:12px 0"></div>'
+    +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px">✍️ Assinatura do cliente</div>'
+    +(o.mapsLink?'<a href="'+o.mapsLink+'" target="_blank" class="btn btn-b btn-sm" style="margin-bottom:8px">📍 Abrir Maps</a>':'')
+    +'<div style="background:#f7fafd;border:1px solid #cde0f0;border-radius:9px;padding:10px;margin-bottom:10px">'
+    +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⏱️ Registro de tempo</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +(o.chegada?'<div style="flex:1;min-width:120px"><div style="font-size:10px;color:var(--gray)">Chegada</div><div style="font-size:13px;font-weight:700;color:#28a745">'+o.chegada+'</div>'+(o.gpsExec?'<div style="font-size:10px;color:var(--gray)">📡 GPS salvo</div>':'')+'</div>':'')
+    +(o.fimExec?'<div style="flex:1;min-width:120px"><div style="font-size:10px;color:var(--gray)">Fim</div><div style="font-size:13px;font-weight:700;color:#dc3545">'+o.fimExec+'</div></div>':'')
+    +(o.chegada&&o.fimExec?'<div style="flex:1;min-width:120px"><div style="font-size:10px;color:var(--gray)">Duração</div><div style="font-size:13px;font-weight:700;color:var(--blue)">'+calcDuracao(o.chegada,o.fimExec)+'</div></div>':'')
+    +'</div>'
+    +(o.status!=='concluido'?'<div class="btn-group" style="margin-top:8px">'
+      +(!o.chegada?'<button class="btn btn-b btn-sm" onclick="registrarChegada('+i+')">📡 Registrar chegada</button>':'')
+      +(o.chegada&&!o.fimExec?'<button class="btn btn-d btn-sm" onclick="registrarFim('+i+')">🏁 Registrar fim</button>':'')
+    +'</div>':'')
+    +'</div>'
+    +(o.status!=='concluido'?
+      '<div style="background:#f7fafd;border:1px solid #cde0f0;border-radius:9px;padding:10px;margin-bottom:10px">'
+      +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔩 Materiais utilizados</div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:8px">'
+      +'<input id="mat-nome-'+i+'" placeholder="Ex: Cabo 2.5mm" style="flex:2;border:1px solid #cde0f0;border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit">'
+      +'<input id="mat-qtd-'+i+'" type="number" placeholder="Qtd" min="1" value="1" style="flex:1;border:1px solid #cde0f0;border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit">'
+      +'<input id="mat-val-'+i+'" type="number" placeholder="R$" min="0" style="flex:1;border:1px solid #cde0f0;border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit">'
+      +'<button class="btn btn-b btn-sm" onclick="addMaterial('+i+')">+ Add</button>'
+      +'</div>'
+      +'<div id="mat-list-'+i+'">'+renderMateriais(i)+'</div>'
+      +'</div>'
+    :'')
+    +(o.materiais&&o.materiais.length&&o.status==='concluido'?
+      '<div style="background:#f7fafd;border:1px solid #cde0f0;border-radius:9px;padding:10px;margin-bottom:10px">'
+      +'<div style="font-size:10px;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔩 Materiais utilizados</div>'
+      +o.materiais.map(m=>'<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span>'+m.qty+'× '+m.nome+'</span><span style="color:var(--blue);font-weight:700">'+brl(m.qty*m.val)+'</span></div>').join('')
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid #cde0f0;margin-top:6px;padding-top:6px"><span>Total materiais</span><span style="color:var(--blue)">'+brl((o.materiais||[]).reduce((a,m)=>a+m.qty*m.val,0))+'</span></div>'
+      +'</div>'
+    :'')
+    +'<div class="sig-wrap"><div class="sig-tb"><span>'+(o.sig?'✅ Assinatura coletada':'Assine com o dedo ou mouse')+'</span><button class="btn btn-sm" onclick="clearSig('+i+')">🧹 Limpar</button></div>'
+    +'<canvas class="sc" id="sig-'+i+'" width="620" height="130" style="height:130px"></canvas></div>'
+    +(o.status!=='concluido'
+      ?'<div class="btn-group"><button class="btn btn-p" onclick="finishOS('+i+')">✅ Finalizar OS</button></div>'
+      :'<div class="btn-group"><div style="display:flex;align-items:center;gap:5px;font-size:13px;color:#155724;font-weight:700;padding:8px 12px;background:#d4edda;border-radius:7px">✅ OS finalizada</div>'
+      +'<button class="btn-pdf" onclick="gerarPDF('+i+')">📄 PDF</button>'
+      +'<button class="btn-wa" onclick="enviarWA('+i+')">💬 WhatsApp</button></div>')
+    +'</div></div>';
+  // Init sig and photos
+  buildObs('oe-modal-'+i,'ex_'+i);
+  initSig(i,o);
+  renderPhotosIn(i,'os-photos-'+i);
+}
+function closeOS(){document.getElementById('os-detail').style.display='none'}
+
+function renderPhotosIn(i,containerId){
+  const el=document.getElementById(containerId);if(!el)return;
+  const o=orcs[i];
+  el.innerHTML=(o.photos||[]).map((p,pi)=>'<div style="position:relative">'
+    +'<img src="'+p.data+'" style="width:80px;height:80px;border-radius:8px;object-fit:cover;border:2px solid var(--bm);cursor:pointer" onclick="viewPhoto(\''+p.data+'\')">'
+    +(o.status!=='concluido'?'<button onclick="removePhoto('+i+','+pi+')" style="position:absolute;top:-4px;right:-4px;background:var(--red);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;line-height:1">✕</button>':'')
+    +'</div>').join('');
 }
 
 // FOTOS SEM LIMITE
@@ -802,7 +1321,7 @@ async function addPhoto(oi,input){
   reader.readAsDataURL(file);
   input.value='';
 }
-function removePhoto(oi,pi){orcs[oi].photos.splice(pi,1);renderPhotos(oi)}
+function removePhoto(oi,pi){orcs[oi].photos.splice(pi,1);renderPhotos(oi);renderPhotosIn(oi,'os-photos-'+oi)}
 function viewPhoto(src){const w=window.open();w.document.write(`<img src="${src}" style="max-width:100%;height:auto">`)}
 
 // ASSINATURA
@@ -828,10 +1347,32 @@ function finishOS(i){
   const c=document.getElementById('sig-'+i);
   const bl=document.createElement('canvas');bl.width=c.width;bl.height=c.height;
   if(c.toDataURL()===bl.toDataURL()){toast('Colete a assinatura primeiro','e');return}
-  orcs[i].status='concluido';orcs[i].sig=c.toDataURL();
+  orcs[i].sig=c.toDataURL();
+  orcs[i].kanban='concluido';
+  orcs[i].finishedAt=new Date().toISOString();
   // Upload assinatura ao Drive
   if(orcs[i].folderId)uploadSigToDrive(i);
-  renderExec();toast('OS finalizada!','ok');autoSave();
+  // Captura GPS automático ao finalizar
+  toast('Finalizando e capturando GPS...','i');
+  function concluir(lat,lng){
+    if(lat&&lng){
+      orcs[i].gpsExec={lat,lng,ts:new Date().toISOString()};
+      toast('OS finalizada com GPS! ✅','ok');
+    } else {
+      toast('OS finalizada (sem GPS)','ok');
+    }
+    orcs[i].status='concluido';
+    renderExec();renderDash();autoSave();
+    // Reopen modal to show PDF button
+    openOS(i);
+  }
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>concluir(pos.coords.latitude.toFixed(6),pos.coords.longitude.toFixed(6)),
+      ()=>concluir(null,null),
+      {timeout:8000,maximumAge:0}
+    );
+  } else { concluir(null,null); }
 }
 
 // ── WHATSAPP ───────────────────────────────────────────
@@ -898,7 +1439,10 @@ async function ensureToken(){
   const exp=parseInt(localStorage.getItem('on_drive_token_exp')||'0');
   if(driveToken&&Date.now()<exp)return driveToken;
   return new Promise((resolve,reject)=>{
-    if(!window.google?.accounts?.oauth2){reject(new Error('GIS não carregado'));return}
+    if(!window.google?.accounts?.oauth2){
+      reject(new Error('API do Google ainda carregando. Aguarde alguns segundos e tente novamente.'));
+      return;
+    }
     const client=window.google.accounts.oauth2.initTokenClient({
       client_id:CLIENT_ID,
       scope:'https://www.googleapis.com/auth/drive.appdata',
@@ -979,6 +1523,8 @@ async function driveLoadAll(){
 async function tryLoadConfig(){
   const exp=parseInt(localStorage.getItem('on_drive_token_exp')||'0');
   if(Date.now()<exp&&configFileId&&driveToken){
+    // Wait a bit for GIS to load before trying
+    await new Promise(r=>setTimeout(r,1500));
     try{await driveLoadAll();
       document.getElementById('btn-drive-connect').style.display='none';
       document.getElementById('btn-drive-save').style.display='inline-flex';
@@ -989,17 +1535,50 @@ async function tryLoadConfig(){
   }
 }
 
-function createOrcFolder(i){autoSave()}
-function uploadPhotoToDrive(oi,photo){autoSave()}
-function uploadSigToDrive(i){autoSave()}
+async function createOrcFolder(i){
+  if(!driveToken){autoSave();return}
+  try{
+    const o=orcs[i];
+    const folderName=o.id+' — '+o.client;
+    const meta={name:folderName,mimeType:'application/vnd.google-apps.folder',parents:[ROOT_FOLDER]};
+    const res=await fetch(DRIVE_API+'/files',{method:'POST',
+      headers:{Authorization:'Bearer '+driveToken,'Content-Type':'application/json'},
+      body:JSON.stringify(meta)});
+    if(!res.ok)throw new Error(res.status);
+    const folder=await res.json();
+    orcs[i].folderId=folder.id;
+    toast('Pasta criada: '+folderName,'ok');
+    autoSave();
+  }catch(e){console.error('Pasta:',e);autoSave()}
+}
+async function uploadPhotoToDrive(oi,photo){
+  if(!driveToken||!orcs[oi].folderId)return;
+  try{
+    const blob=await fetch(photo.data).then(r=>r.blob());
+    const meta={name:'foto_'+Date.now()+'.jpg',parents:[orcs[oi].folderId]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',blob);
+    await fetch(UPLOAD_API+'/files?uploadType=multipart',{method:'POST',headers:{Authorization:'Bearer '+driveToken},body:form});
+    toast('Foto salva no Drive!','ok');
+  }catch(e){console.error('Foto Drive:',e)}
+}
+async function uploadSigToDrive(i){
+  if(!driveToken||!orcs[i].folderId||!orcs[i].sig)return;
+  try{
+    const blob=await fetch(orcs[i].sig).then(r=>r.blob());
+    const meta={name:'assinatura_'+orcs[i].id+'.png',parents:[orcs[i].folderId]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',blob);
+    await fetch(UPLOAD_API+'/files?uploadType=multipart',{method:'POST',headers:{Authorization:'Bearer '+driveToken},body:form});
+  }catch(e){console.error('Sig Drive:',e)}
+}
 
 function autoSave(){
-  // Salva localmente + agenda sync no Firebase
-  try{
-    localStorage.setItem('on_fotos',JSON.stringify(orcs.map(o=>o.photos||[])));
-  }catch(e){}
+  try{localStorage.setItem('on_fotos',JSON.stringify(orcs.map(o=>o.photos||[])))}catch(e){}
   clearTimeout(autoSave._t);
-  autoSave._t=setTimeout(()=>{if(currentUser?.role==='admin')fbSave()},2000);
+  autoSave._t=setTimeout(()=>{if(currentUser?.role==='admin')driveSaveAll()},2000);
 }
 
 // ── PDF ────────────────────────────────────────────────
@@ -1045,7 +1624,60 @@ async function gerarPDF(i){
     });
     doc.setFillColor(...BL);doc.setDrawColor(...B);doc.setLineWidth(0.8);doc.rect(ML,y,CW,8,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...D);
-    doc.text('TOTAL GERAL',ML+114-2,y+5.5,{align:'right'});doc.text(brl(tt),ML+CW-2,y+5.5,{align:'right'});y+=8+8;
+    doc.text('TOTAL GERAL',ML+114-2,y+5.5,{align:'right'});doc.text(brl(tt),ML+CW-2,y+5.5,{align:'right'});y+=8+6;
+    // Desconto
+    if(o.desconto&&o.desconto.tipo!=='none'){
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...GR);
+      const descLabel=o.desconto.tipo==='%'?'Desconto ('+o.desconto.val+'%)':'Desconto';
+      doc.text(descLabel,ML+114-2,y+4,{align:'right'});
+      doc.setTextColor(220,53,69);doc.text('-'+brl(o.desconto.descVal||o.desconto.val),ML+CW-2,y+4,{align:'right'});
+      y+=6;
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...D);
+      doc.text('TOTAL COM DESCONTO',ML+114-2,y+4,{align:'right'});
+      doc.setTextColor(29,49,64);doc.text(brl(o.desconto.final),ML+CW-2,y+4,{align:'right'});
+      y+=8;
+    }
+    // Materiais
+    if(o.materiais&&o.materiais.length){
+      y+=2;
+      doc.setTextColor(...B);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('MATERIAIS UTILIZADOS (COBRADO À PARTE)',ML,y);y+=4;
+      doc.setFillColor(...D);doc.rect(ML,y,CW,7,'F');
+      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.text('Material',ML+2,y+4.8);doc.text('Qtd',ML+100,y+4.8,{align:'center'});
+      doc.text('Valor Unit.',ML+140,y+4.8,{align:'right'});doc.text('Total',ML+CW-2,y+4.8,{align:'right'});
+      y+=7;let tm=0;
+      o.materiais.forEach((m,ri)=>{
+        const sub=m.qty*m.val;tm+=sub;
+        doc.setFillColor(...(ri%2?BL:[255,255,255]));doc.setDrawColor(...LN);doc.setLineWidth(0.2);doc.rect(ML,y,CW,6,'FD');
+        doc.setTextColor(...D);doc.setFont('helvetica','normal');doc.setFontSize(8);
+        doc.text(m.nome,ML+2,y+4.2);doc.text(String(m.qty),ML+100,y+4.2,{align:'center'});
+        doc.text(brl(m.val),ML+140,y+4.2,{align:'right'});doc.text(brl(sub),ML+CW-2,y+4.2,{align:'right'});
+        y+=6;
+      });
+      doc.setFillColor(...BL);doc.setDrawColor(...B);doc.setLineWidth(0.5);doc.rect(ML,y,CW,7,'FD');
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...D);
+      doc.text('TOTAL MATERIAIS',ML+114-2,y+4.8,{align:'right'});doc.text(brl(tm),ML+CW-2,y+4.8,{align:'right'});
+      y+=7+6;
+    }
+    // Tempo de execução
+    if(o.chegada){
+      y+=2;
+      doc.setTextColor(...B);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('REGISTRO DE EXECUÇÃO',ML,y);y+=4;
+      doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.setLineWidth(0.3);doc.rect(ML,y,CW,7,'FD');
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...D);
+      doc.text('Chegada: '+o.chegada,ML+2,y+4.8);
+      if(o.fimExec)doc.text('Fim: '+o.fimExec,ML+60,y+4.8);
+      if(o.chegada&&o.fimExec)doc.text('Duração: '+calcDuracao(o.chegada,o.fimExec),ML+110,y+4.8);
+      y+=7+6;
+    }
+    // Pagamento
+    if(o.pagamento){
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...GR);
+      doc.text('Forma de pagamento: '+o.pagamento.tipo+' — '+o.pagamento.descricao,ML,y);y+=5;
+    }
+    if(o.validade){
+      doc.setTextColor(...GR);doc.text('Validade do orçamento: '+o.validade,ML,y);y+=8;
+    } else {y+=4;}
     if(o.obs){
       doc.setTextColor(...B);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('OBSERVAÇÕES',ML,y);y+=4;
       const lines=doc.splitTextToSize(o.obs,CW-10);const oh=lines.length*5+8;
@@ -1084,10 +1716,414 @@ async function gerarPDF(i){
 }
 
 // ── INIT ───────────────────────────────────────────────
+
+// ── PAGAMENTO ──────────────────────────────────────────
+function updatePgtoFields(prefix){
+  const tipo=document.getElementById((prefix==='v'?'pgto':'apgto')+'-tipo')?.value;
+  const avista=document.getElementById((prefix==='v'?'v':'a')+'pgto-avista');
+  const parcelado=document.getElementById((prefix==='v'?'v':'a')+'pgto-parcelado');
+  if(!avista||!parcelado)return;
+  avista.style.display=tipo==='avista'?'block':'none';
+  parcelado.style.display=tipo==='parcelado'?'block':'none';
+  if(tipo==='parcelado')updateParcelas(prefix);
+}
+
+function updateParcelas(prefix){
+  const p=prefix==='v'?'v':'a';
+  const n=parseInt(document.getElementById(p+'parcelas')?.value)||2;
+  const totalEl=document.getElementById('tval')||document.getElementById('atval');
+  const totalStr=totalEl?.textContent||'0';
+  const total=parseFloat(totalStr.replace(/[^0-9,]/g,'').replace(',','.'))||0;
+  const perParcela=n>0?total/n:0;
+  const el=document.getElementById(p+'parcela-val');
+  if(el)el.value=brl(perParcela);
+}
+
+function getPgtoInfo(prefix){
+  const p=prefix==='v'?'':' ';
+  const tipo=document.getElementById((prefix==='v'?'pgto':'apgto')+'-tipo')?.value||'avista';
+  if(tipo==='avista'){
+    const quando=document.getElementById((prefix==='v'?'v':'a')+'pgto-quando')?.value||'Após execução';
+    return{tipo:'À vista',descricao:quando};
+  } else {
+    const n=document.getElementById((prefix==='v'?'v':'a')+'parcelas')?.value||'2';
+    const val=document.getElementById((prefix==='v'?'v':'a')+'parcela-val')?.value||'';
+    return{tipo:'Parcelado',descricao:n+'x de '+val};
+  }
+}
+
+function getDesconto(prefix,total){
+  const tipo=document.getElementById((prefix==='v'?'':'a')+'desc-tipo')?.value||'none';
+  const val=parseFloat(document.getElementById((prefix==='v'?'':'a')+'desc-val')?.value)||0;
+  if(tipo==='none'||!val)return{tipo:'none',val:0,final:total};
+  if(tipo==='pct'){const d=total*val/100;return{tipo:'%',val,descVal:d,final:total-d}}
+  return{tipo:'R$',val,descVal:val,final:total-val};
+}
+
+// ── ADMIN CRIA ORÇAMENTO ───────────────────────────────
+let adminCurItems=[];
+
+function initAdminNovo(){
+  // Populate vendedor select
+  const sel=document.getElementById('avendedor-sel');
+  if(sel){
+    sel.innerHTML=team.map(u=>`<option value="${u.name}">${u.name} (${u.role==='admin'?'Admin':u.role==='vendedor'?'Vendedor':'Execução'})</option>`).join('');
+  }
+  // Populate service select
+  const asel=document.getElementById('ass');
+  if(asel)asel.innerHTML='<option value="">Selecionar...</option>'+svcs.map(s=>`<option value="${s.id}">${s.name} — ${brl(s.price)}/${s.unit}</option>`).join('');
+  // Ref table
+  const rt=document.getElementById('areftbl');
+  if(rt)rt.innerHTML=svcs.map(s=>`<tr><td>${s.name}</td><td>${brl(s.price)}/${s.unit}</td></tr>`).join('');
+  buildObs('obs-admin-novo','admin-novo');
+}
+
+function addAdminItem(){
+  const sel=document.getElementById('ass'),qty=parseInt(document.getElementById('asq').value)||1;
+  if(!sel?.value){toast('Selecione um serviço','e');return}
+  const s=svcs.find(s=>s.id==sel.value);
+  adminCurItems.push({name:s.name,unit:s.unit,qty,price:s.price});
+  renderAdminItems();sel.value='';document.getElementById('asq').value=1;
+}
+
+function renderAdminItems(){
+  const list=document.getElementById('ailist');if(!list)return;
+  if(!adminCurItems.length){list.innerHTML='<div class="empty" style="padding:12px">Nenhum item</div>';document.getElementById('atrow').style.display='none';return}
+  list.innerHTML=adminCurItems.map((it,i)=>`<div class="irow"><span class="id">${it.qty}× ${it.name}</span><span class="ip">${brl(it.qty*it.price)}</span><button class="btn btn-sm" onclick="adminCurItems.splice(${i},1);renderAdminItems()" style="padding:2px 7px;color:var(--red)">✕</button></div>`).join('');
+  const t=tot(adminCurItems);
+  document.getElementById('atval').textContent=brl(t);
+  document.getElementById('atrow').style.display='flex';
+  updateParcelas('a');
+}
+
+function createAdminOrc(){
+  const nome=document.getElementById('acn').value.trim();
+  if(!nome||!adminCurItems.length){toast('Preencha cliente e serviços','e');return}
+  const totalBruto=tot(adminCurItems);
+  const desc=getDesconto('a',totalBruto);
+  const pgto=getPgtoInfo('a');
+  const obs=document.getElementById('admin-novo-tx')?.value||'';
+  const vendedor=document.getElementById('avendedor-sel')?.value||currentUser?.name;
+  const id='ORC-0'+String(nid++).padStart(2,'0');
+  orcs.push({
+    id,client:nome,tel:document.getElementById('act').value,
+    address:document.getElementById('ace').value,
+    mapsLink:document.getElementById('acmaps').value,
+    items:[...adminCurItems],obs,
+    desconto:desc,pagamento:pgto,
+    validade:document.getElementById('avalidade')?.value||'30 dias',
+    status:'rascunho',photos:[],sig:null,
+    created:new Date().toLocaleDateString('pt-BR'),
+    folderId:'',createdBy:vendedor,kanban:'aguardando'
+  });
+  adminCurItems=[];renderAdminItems();
+  ['acn','act','ace','acmaps'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  buildObs('obs-admin-novo','admin-novo');
+  toast('Orçamento '+id+' gerado!','ok');
+  autoSave();
+  renderDash();renderAdmin();
+}
+
+function clearAdminForm(){
+  adminCurItems=[];renderAdminItems();
+  ['acn','act','ace','acmaps'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  buildObs('obs-admin-novo','admin-novo');
+}
+
+// ── COMERCIAL ──────────────────────────────────────────
+function initComercial(){
+  const sel=document.getElementById('com-mes');if(!sel)return;
+  const meses=[];
+  const now=new Date();
+  for(let i=0;i<12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const label=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    const val=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    meses.push({label,val});
+  }
+  sel.innerHTML=meses.map(m=>`<option value="${m.val}">${m.label}</option>`).join('');
+  const vsel=document.getElementById('com-vendedor');
+  if(vsel){
+    vsel.innerHTML='<option value="">Todos vendedores</option>'+team.map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
+  }
+  renderComercial();
+}
+
+function renderComercial(){
+  const el=document.getElementById('comercial-content');if(!el)return;
+  const mes=document.getElementById('com-mes')?.value||'';
+  const vendSel=document.getElementById('com-vendedor')?.value||'';
+  
+  const filtrados=orcs.filter(o=>{
+    if(!o.created)return false;
+    const parts=o.created.split('/');
+    if(parts.length<3)return false;
+    const orcMes=parts[2]+'-'+parts[1].padStart(2,'0');
+    const mesMatch=!mes||orcMes===mes;
+    const vendMatch=!vendSel||o.createdBy===vendSel;
+    return mesMatch&&vendMatch;
+  });
+
+  const gerados=filtrados.length;
+  const aprovados=filtrados.filter(o=>['aprovado','execucao','concluido'].includes(o.status)).length;
+  const concluidos=filtrados.filter(o=>o.status==='concluido').length;
+  const recusados=filtrados.filter(o=>o.status==='recusado').length;
+  const valorTotal=filtrados.filter(o=>o.status!=='recusado').reduce((a,o)=>a+tot(o.items),0);
+  const valorConcluido=filtrados.filter(o=>o.status==='concluido').reduce((a,o)=>a+tot(o.items),0);
+
+  // Ranking por vendedor
+  const byVend={};
+  filtrados.forEach(o=>{
+    const v=o.createdBy||'—';
+    if(!byVend[v])byVend[v]={gerados:0,aprovados:0,concluidos:0,valor:0};
+    byVend[v].gerados++;
+    if(['aprovado','execucao','concluido'].includes(o.status))byVend[v].aprovados++;
+    if(o.status==='concluido'){byVend[v].concluidos++;byVend[v].valor+=tot(o.items)}
+  });
+
+  el.innerHTML=`
+    <div class="dash-grid">
+      <div class="dash-card"><div class="dash-num blue">${gerados}</div><div class="dash-label">📋 Gerados</div></div>
+      <div class="dash-card"><div class="dash-num orange">${aprovados}</div><div class="dash-label">✅ Aprovados</div></div>
+      <div class="dash-card"><div class="dash-num green">${concluidos}</div><div class="dash-label">🎉 Concluídos</div></div>
+      <div class="dash-card"><div class="dash-num red">${recusados}</div><div class="dash-label">❌ Recusados</div></div>
+      <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">💰 Volume negociado</div><div class="dash-total">${brl(valorTotal)}</div></div>
+      <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">🏆 Valor executado</div><div class="dash-total">${brl(valorConcluido)}</div></div>
+    </div>
+    <div class="sl" style="margin-top:8px">🏅 Ranking de vendedores</div>
+    ${Object.entries(byVend).sort((a,b)=>b[1].valor-a[1].valor).map(([nome,d],idx)=>`
+      <div class="card" style="margin-bottom:8px">
+        <div class="card-header">
+          <span class="card-title">${idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'#'+(idx+1)} ${nome}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--blue)">${brl(d.valor)}</span>
+        </div>
+        <div class="info-row"><span class="il">Gerados</span><span class="iv">${d.gerados}</span></div>
+        <div class="info-row"><span class="il">Aprovados</span><span class="iv">${d.aprovados}</span></div>
+        <div class="info-row"><span class="il">Concluídos</span><span class="iv">${d.concluidos}</span></div>
+      </div>`).join('')||'<div class="empty">Nenhum dado no período</div>'}`;
+}
+
+// ── MAPA ───────────────────────────────────────────────
+function renderAdminExec(){
+  const el=document.getElementById('admin-exec-content');
+  if(!el)return;
+  // Render full kanban inside admin view
+  const cols=[
+    {key:'aguardando',label:'Aguardando contato'},
+    {key:'contato',label:'Contato feito'},
+    {key:'agendado',label:'Agendado'},
+    {key:'execucao',label:'Em execução'},
+    {key:'concluido',label:'Concluído'}
+  ];
+  const aprovados=orcs.filter(o=>['aprovado','execucao','concluido'].includes(o.status));
+  if(!aprovados.length){
+    el.innerHTML='<div class="empty" style="padding:30px">Nenhuma OS em andamento</div>';
+    return;
+  }
+  el.innerHTML='<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px">'
+    +cols.map(col=>{
+      const items=aprovados.filter(o=>(o.kanban||'aguardando')===col.key);
+      return `<div style="min-width:220px;flex:1;background:#f7fafd;border-radius:10px;padding:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--dark);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+          ${col.label} <span style="background:var(--blue);color:white;border-radius:10px;padding:1px 7px;font-size:10px">${items.length}</span>
+        </div>
+        ${items.map(o=>{
+          const i=orcs.indexOf(o);
+          return `<div style="background:white;border-radius:8px;padding:9px;margin-bottom:7px;border:1px solid #dce8f3;cursor:pointer" onclick="openOS(${i})">
+            <div style="font-size:12px;font-weight:700;color:var(--dark)">${o.id}</div>
+            <div style="font-size:12px;color:var(--gray)">${o.client}</div>
+            <div style="font-size:11px;color:var(--blue);font-weight:700">${brl(tot(o.items))}</div>
+            ${o.tel?`<div style="font-size:11px;color:var(--gray)">📞 ${o.tel}</div>`:''}
+          </div>`;
+        }).join('')||`<div style="font-size:11px;color:var(--gray);text-align:center;padding:10px">Vazio</div>`}
+      </div>`;
+    }).join('')+'</div>';
+}
+
+function abrirMaps(){
+  const filtrados=window._mapaFiltrados||[];
+  if(!filtrados.length){toast('Nenhum serviço com GPS no período','e');return}
+  if(filtrados.length===1){
+    const g=filtrados[0].gpsExec;
+    window.open('https://maps.google.com/?q='+g.lat+','+g.lng,'_blank');
+    return;
+  }
+  const coords=filtrados.map(o=>o.gpsExec.lat+','+o.gpsExec.lng);
+  window.open('https://www.google.com/maps/dir/'+coords.join('/'),'_blank');
+}
+
+function renderMapa(){
+  const el=document.getElementById('mapa-container');
+  const lista=document.getElementById('mapa-lista');
+  if(!el)return;
+  const periodo=document.getElementById('mapa-periodo')?.value||'todos';
+  const now=new Date();
+
+  // Apenas concluídos com GPS capturado
+  const filtrados=orcs.filter(o=>{
+    if(o.status!=='concluido')return false;
+    if(!o.gpsExec)return false;
+    if(periodo==='mes'){
+      const parts=(o.created||'').split('/');
+      if(parts.length<3)return false;
+      if(parseInt(parts[1])!==now.getMonth()+1||parseInt(parts[2])!==now.getFullYear())return false;
+    }
+    if(periodo==='trimestre'){
+      const parts=(o.created||'').split('/');
+      if(parts.length<3)return false;
+      const d=new Date(parts[2],parseInt(parts[1])-1,parts[0]);
+      if((now-d)/(1000*60*60*24*30)>3)return false;
+    }
+    return true;
+  });
+
+  // Salva filtrados no escopo global temporário para o botão acessar
+  window._mapaFiltrados=filtrados;
+
+  el.innerHTML=`
+    <div style="text-align:center;padding:18px">
+      <div style="font-size:28px;margin-bottom:6px">🗺️</div>
+      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:4px">${filtrados.length} serviço(s) concluído(s) com GPS</div>
+      <div style="font-size:12px;color:var(--gray);margin-bottom:14px">Somente OS finalizadas com localização capturada</div>
+      <button class="btn btn-p" onclick="abrirMaps()" style="font-size:14px;padding:10px 24px">
+        📍 Abrir todos no Google Maps
+      </button>
+      ${!filtrados.length?'<div style="margin-top:12px;font-size:12px;color:var(--gray)">Finalize OS em campo para registrar o GPS automaticamente</div>':''}
+    </div>`;
+
+  if(lista){
+    lista.innerHTML='<div class="sl" style="margin-top:4px">Lista de serviços concluídos</div>'
+      +filtrados.map(o=>`<div class="card" style="margin-bottom:8px">
+        <div class="card-header">
+          <span class="card-title">✅ ${o.id} — ${o.client}</span>
+          <span style="font-size:11px;color:var(--gray)">${o.created||''}</span>
+        </div>
+        <div class="info-row"><span class="il">Total</span><span class="iv" style="color:var(--blue);font-weight:700">${brl(tot(o.items))}</span></div>
+        <div class="info-row"><span class="il">Técnico</span><span class="iv">${o.createdBy||'—'}</span></div>
+        <div class="info-row"><span class="il">GPS</span><span class="iv" style="color:#28a745">📡 ${o.gpsExec?.lat}, ${o.gpsExec?.lng}</span></div>
+        <div class="btn-group">
+          <a href="https://maps.google.com/?q=${o.gpsExec?.lat},${o.gpsExec?.lng}" target="_blank" class="btn btn-b btn-sm">📍 Ver ponto no Maps</a>
+        </div>
+      </div>`).join('')||'<div class="empty">Nenhum serviço concluído com GPS no período</div>';
+  }
+}
+
+// ── GPS DO TÉCNICO ─────────────────────────────────────
+function registrarChegada(i){
+  toast('Capturando localização...','i');
+  const agora=new Date();
+  const hora=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  orcs[i].chegada=hora;
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        orcs[i].gpsExec={lat:pos.coords.latitude.toFixed(6),lng:pos.coords.longitude.toFixed(6),ts:agora.toISOString()};
+        toast('Chegada registrada: '+hora+' (GPS salvo)','ok');
+        autoSave();openOS(i);
+      },
+      ()=>{toast('Chegada registrada: '+hora,'ok');autoSave();openOS(i);},
+      {timeout:8000,maximumAge:0}
+    );
+  } else {
+    toast('Chegada registrada: '+hora,'ok');
+    autoSave();openOS(i);
+  }
+}
+
+function registrarFim(i){
+  const agora=new Date();
+  const hora=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  orcs[i].fimExec=hora;
+  // Auto-calculate hora técnica if service exists
+  const durMin=calcDuracaoMin(orcs[i].chegada,hora);
+  if(durMin>0){
+    const hrs=durMin/60;
+    const htIdx=orcs[i].items.findIndex(it=>it.unit==='HR'||it.name.toLowerCase().includes('hora'));
+    if(htIdx>=0){
+      orcs[i].items[htIdx].qty=parseFloat(hrs.toFixed(2));
+      toast('Fim registrado: '+hora+' — Hora técnica atualizada para '+hrs.toFixed(2)+'h','ok');
+    } else {
+      toast('Fim registrado: '+hora+' — Duração: '+calcDuracao(orcs[i].chegada,hora),'ok');
+    }
+  } else {
+    toast('Fim registrado: '+hora,'ok');
+  }
+  autoSave();openOS(i);
+}
+
+function calcDuracaoMin(chegada,fim){
+  if(!chegada||!fim)return 0;
+  const [ch,cm]=chegada.split(':').map(Number);
+  const [fh,fm]=fim.split(':').map(Number);
+  return(fh*60+fm)-(ch*60+cm);
+}
+
+function calcDuracao(chegada,fim){
+  const min=calcDuracaoMin(chegada,fim);
+  if(min<=0)return'—';
+  const h=Math.floor(min/60),m=min%60;
+  return(h>0?h+'h ':'')+m+'min';
+}
+
+function addMaterial(i){
+  const nome=document.getElementById('mat-nome-'+i)?.value.trim();
+  const qtd=parseFloat(document.getElementById('mat-qtd-'+i)?.value)||1;
+  const val=parseFloat(document.getElementById('mat-val-'+i)?.value)||0;
+  if(!nome){toast('Digite o nome do material','e');return}
+  if(!orcs[i].materiais)orcs[i].materiais=[];
+  orcs[i].materiais.push({nome,qty:qtd,val});
+  document.getElementById('mat-nome-'+i).value='';
+  document.getElementById('mat-qtd-'+i).value='1';
+  document.getElementById('mat-val-'+i).value='';
+  document.getElementById('mat-list-'+i).innerHTML=renderMateriais(i);
+  autoSave();
+}
+
+function renderMateriais(i){
+  const mats=orcs[i]?.materiais||[];
+  if(!mats.length)return'<div style="font-size:11px;color:var(--gray);text-align:center;padding:4px">Nenhum material adicionado</div>';
+  const total=mats.reduce((a,m)=>a+m.qty*m.val,0);
+  return mats.map((m,mi)=>'<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0">'
+    +'<span style="flex:1">'+m.qty+'× '+m.nome+'</span>'
+    +'<span style="color:var(--blue);font-weight:700">'+brl(m.qty*m.val)+'</span>'
+    +'<button onclick="removeMaterial('+i+','+mi+')" style="background:none;border:none;color:#dc3545;cursor:pointer;font-size:14px;padding:0 2px">✕</button>'
+  +'</div>').join('')
+  +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;border-top:1px solid #cde0f0;margin-top:4px;padding-top:4px">'
+  +'<span style="color:var(--gray)">Total materiais</span><span style="color:var(--blue)">'+brl(total)+'</span></div>';
+}
+
+function removeMaterial(i,mi){
+  orcs[i].materiais.splice(mi,1);
+  const el=document.getElementById('mat-list-'+i);
+  if(el)el.innerHTML=renderMateriais(i);
+  autoSave();
+}
+
+function capturarGPS(i){
+  if(!navigator.geolocation){toast('GPS não disponível','e');return}
+  toast('Capturando localização...','i');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude.toFixed(6);
+    const lng=pos.coords.longitude.toFixed(6);
+    orcs[i].gpsExec={lat,lng,ts:new Date().toISOString()};
+    orcs[i].mapsLink=orcs[i].mapsLink||`https://maps.google.com/?q=${lat},${lng}`;
+    toast('Localização capturada!','ok');
+    autoSave();
+  },err=>toast('Erro GPS: '+err.message,'e'));
+}
+
+// ── SETPANE UPDATE ─────────────────────────────────────
+const _origSetPane=setPane;
 // Scripts loaded in head
 
 renderUserList();
 </script>
+
+<div id="os-detail" style="display:none"></div>
+
+<div id="ver-modal" style="display:none;position:fixed;inset:0;background:rgba(29,49,64,.78);z-index:10001;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto">
+  <div id="ver-modal-body" style="background:white;border-radius:14px;padding:20px;width:100%;max-width:600px;margin:auto"></div>
+</div>
 
 <div id="add-member-modal" style="display:none;position:fixed;inset:0;background:rgba(29,49,64,.75);z-index:10001;align-items:center;justify-content:center;padding:16px">
   <div style="background:white;border-radius:14px;padding:22px;width:100%;max-width:340px">
@@ -1103,6 +2139,11 @@ renderUserList();
         <option value="exec">&#128295; Execução</option>
         <option value="admin">&#128274; Administrador</option>
       </select>
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="font-size:11px;color:#5a7a95;font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">PIN de acesso (4 dígitos)</label>
+      <input id="new-member-pin" type="password" inputmode="numeric" maxlength="4" placeholder="1234" style="width:100%;border:1px solid #c0d8ec;border-radius:7px;padding:9px 11px;font-size:16px;color:#1D3140;font-family:inherit;letter-spacing:8px;text-align:center">
+      <div style="font-size:11px;color:#5a7a95;margin-top:3px">Admin pode redefinir o PIN de qualquer membro</div>
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="confirmAddMember()" style="flex:1;background:#1D3140;color:white;border:none;border-radius:7px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#10003; Adicionar</button>
