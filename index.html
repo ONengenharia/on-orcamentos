@@ -1637,9 +1637,10 @@ function loadLocalData(){
 }
 
 // ── PDF ────────────────────────────────────────────────
-async function gerarPDF(i){
+async function gerarPDF(i,opts){
+  opts=opts||{};
   const o=orcs[i];
-  lov(true,'Gerando PDF...');
+  if(!opts.silent)lov(true,'Gerando PDF...');
   await new Promise(r=>setTimeout(r,80));
   try{
     const {jsPDF}=window.jspdf;
