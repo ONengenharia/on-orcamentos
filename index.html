@@ -27,7 +27,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;min-height:100dv
 .login-sub{color:var(--blue);font-size:11px;letter-spacing:2px;text-transform:uppercase}
 .login-box{background:white;border-radius:14px;padding:22px;width:100%;max-width:360px}
 .login-box h3{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:14px;text-align:center}
-.user-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.user-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:60vh;overflow-y:auto}
 .user-btn{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid var(--line);border-radius:9px;background:white;cursor:pointer;transition:all .15s;font-family:inherit;width:100%}
 .user-btn:hover,.user-btn:active{border-color:var(--blue);background:var(--bl)}
 .user-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
@@ -269,9 +269,9 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
 
   <!-- SYNC BAR (admin only) -->
   <div class="syncbar" id="syncbar" style="display:none">
-    <div class="sync-st"><div class="sdot" id="sdot"></div><span id="slabel">Drive não conectado</span></div>
+    <div class="sync-st"><div class="sdot" id="sdot"></div><span id="slabel" style="font-size:11px">App salva tudo localmente. Drive é só para compartilhar/enviar ao escritório.</span></div>
     <div class="sync-btns">
-      <button class="sbtn" id="btn-drive-connect" onclick="connectDrive()">&#128279; Conectar Drive</button>
+      <button class="sbtn" id="btn-drive-connect" onclick="connectDrive()" style="font-size:11px;opacity:.85">&#128279; Conectar Drive (opcional)</button>
       <button class="sbtn" id="btn-drive-save" onclick="driveSaveAll()" style="display:none">&#9650; Salvar</button>
       <button class="sbtn" id="btn-drive-load" onclick="driveLoadAll()" style="display:none">&#9660; Carregar</button>
     </div>
@@ -600,8 +600,11 @@ function renderUserList(){
 
 function selectUser(i){
   const u=team[i];
-  if(u.role==='admin'){pendingAdminUser=u;showPinModal(u.name);return}
-  loginAs(u);
+  if(u.pin||u.role==='admin'){
+    pendingAdminUser=u;showPinModal(u.name);
+  } else {
+    loginAs(u);
+  }
 }
 function loginAs(u){
   currentUser=u;
