@@ -274,6 +274,7 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
       <button class="sbtn" id="btn-drive-connect" onclick="connectDrive()" style="font-size:11px;opacity:.85">&#128279; Conectar Drive (opcional)</button>
       <button class="sbtn" id="btn-drive-save" onclick="driveSaveAll()" style="display:none">&#9650; Salvar</button>
       <button class="sbtn" id="btn-drive-load" onclick="driveLoadAll()" style="display:none">&#9660; Carregar</button>
+      <button class="sbtn" onclick="testarDrive()" style="background:#856404">&#128269; Testar Drive</button>
     </div>
   </div>
 
@@ -561,9 +562,16 @@ let orcs=[
    createdBy:'Luan',kanban:'aguardando'},
 ];
 let team=[
-  {name:'Lucas',role:'admin',color:'#1D3140',initials:'LU',pin:'1234'},
-  {name:'Luan',role:'admin',color:'#2d4a60',initials:'LA',pin:'1234'},
-  {name:'Jozé A. Klein Oliveira',role:'vendedor',color:'#64ABDE',initials:'JK',pin:'1234'},
+  {name:'Luan Stefanello',role:'admin',color:'#1D3140',initials:'LS',pin:'1234'},
+  {name:'Lucas Oliveira',role:'admin',color:'#2d4a60',initials:'LO',pin:'1234'},
+  {name:'Odair Neuls',role:'vendedor',color:'#64ABDE',initials:'ON',pin:'1234'},
+  {name:'Carlos Tauchert',role:'vendedor',color:'#64ABDE',initials:'CT',pin:'1234'},
+  {name:'José A. Klein Oliveira',role:'vendedor',color:'#64ABDE',initials:'JK',pin:'1234'},
+  {name:'Tiago Almeida',role:'exec',color:'#28a745',initials:'TA',pin:'1234'},
+  {name:'Ricardo Schusler',role:'vendedor',color:'#64ABDE',initials:'RS',pin:'1234'},
+  {name:'Scheila Kurz',role:'vendedor',color:'#64ABDE',initials:'SK',pin:'1234'},
+  {name:'Roger',role:'exec',color:'#28a745',initials:'RO',pin:'1234'},
+  {name:'Carlos dos Santos',role:'exec',color:'#28a745',initials:'CS',pin:'1234'},
 ];
 let adminPin=localStorage.getItem('on_admin_pin')||'1234';
 let currentUser=null;
@@ -832,9 +840,15 @@ function toggleRec(key){
       const mr=new MediaRecorder(stream);let ch=[];
       mr.ondataavailable=e=>ch.push(e.data);
       mr.onstop=()=>{
-        const url=URL.createObjectURL(new Blob(ch,{type:'audio/webm'}));
-        if(!recs[key])recs[key]=[];recs[key].push(url);
-        renderAudios(key);ch=[];stream.getTracks().forEach(t=>t.stop());
+        const blob=new Blob(ch,{type:'audio/webm'});
+        const reader=new FileReader();
+        reader.onload=()=>{
+          if(!recs[key])recs[key]=[];
+          recs[key].push(reader.result); // base64 data URL - persiste no localStorage
+          renderAudios(key);
+        };
+        reader.readAsDataURL(blob);
+        ch=[];stream.getTracks().forEach(t=>t.stop());
         delete mrs[key];arec=null;
       };
       mrs[key]=mr;mr.start();arec=key;
@@ -873,8 +887,9 @@ function createOrc(){
   ['cn','ct','ce'].forEach(id=>document.getElementById(id).value='');
   buildObs('obs-vend','vend');
   toast('Orçamento '+id+' gerado!','ok');
-  // Criar pasta no Drive para este orçamento
-  createOrcFolder(orcs.length-1);
+  autoSave();
+  // Criar pasta no Drive para este orçamento (se conectado)
+  if(driveToken)createOrcFolder(orcs.length-1);
 }
 function clearForm(){
   cur=[];recs['vend']=[];renderItems();
@@ -1469,6 +1484,42 @@ function compressPhoto(dataUrl,maxW=800,quality=0.7){
 }
 
 // ── GOOGLE DRIVE AUTH ──────────────────────────────────
+async function testarDrive(){
+  if(!driveToken){toast('Conecte o Drive primeiro','e');connectDrive();return}
+  lov(true,'Testando acesso ao Drive...');
+  try{
+    const getRes=await fetch(DRIVE_API+'/files/'+ROOT_FOLDER+'?fields=id,name,capabilities',{
+      headers:{Authorization:'Bearer '+driveToken}
+    });
+    if(!getRes.ok){
+      const errTxt=await getRes.text();
+      throw new Error('Não achou a pasta (HTTP '+getRes.status+'): '+errTxt.substring(0,200));
+    }
+    const folderInfo=await getRes.json();
+    console.log('Pasta encontrada:',folderInfo);
+
+    const meta={name:'teste_'+Date.now()+'.txt',parents:[ROOT_FOLDER]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',new Blob(['teste de escrita OK'],{type:'text/plain'}));
+    const upRes=await fetch(UPLOAD_API+'/files?uploadType=multipart',{
+      method:'POST',headers:{Authorization:'Bearer '+driveToken},body:form
+    });
+    if(!upRes.ok){
+      const errTxt=await upRes.text();
+      throw new Error('Falhou ao escrever (HTTP '+upRes.status+'): '+errTxt.substring(0,200));
+    }
+    const uploaded=await upRes.json();
+    console.log('Arquivo de teste criado:',uploaded);
+    lov(false);
+    toast('✅ Drive OK! Pasta: '+folderInfo.name+' — Consegue ler e escrever.','ok');
+  }catch(e){
+    console.error('Teste Drive falhou:',e);
+    lov(false);
+    toast('❌ '+e.message,'e');
+  }
+}
+
 function connectDrive(){
   if(!window.google?.accounts?.oauth2){toast('Aguarde o Google carregar...','e');return}
   const client=window.google.accounts.oauth2.initTokenClient({
