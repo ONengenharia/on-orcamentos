@@ -234,7 +234,17 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
   </div>
   <div class="login-box">
     <h3>Quem é você?</h3>
-    <div class="user-list" id="user-list"></div>
+    <select id="user-select" onchange="onUserSelectChange()" style="width:100%;padding:12px 14px;font-size:14px;border:1px solid #c0d8ec;border-radius:9px;color:#1D3140;font-family:inherit;margin-bottom:12px;background:white">
+      <option value="">Selecione seu nome...</option>
+    </select>
+    <div id="user-preview" style="display:none;align-items:center;gap:10px;padding:10px 12px;background:#f7fafd;border-radius:9px;margin-bottom:12px">
+      <div class="user-avatar" id="up-avatar" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0"></div>
+      <div>
+        <div id="up-name" style="font-size:13px;font-weight:700;color:#1D3140"></div>
+        <div id="up-role" style="font-size:11px;color:#5a7a95"></div>
+      </div>
+    </div>
+    <button class="btn btn-p" id="btn-entrar" onclick="confirmUserSelect()" style="width:100%;display:none">Entrar</button>
   </div>
 </div>
 
@@ -590,20 +600,38 @@ function setSyncSt(state,label){document.getElementById('sdot').className='sdot'
 
 // ── LOGIN ──────────────────────────────────────────────
 function renderUserList(){
-  const ul=document.getElementById('user-list');
-  if(!ul)return;
-  ul.innerHTML='';
-  team.forEach(function(u,i){
-    const roleLabel=u.role==='admin'?'Administrador':u.role==='vendedor'?'Vendedor':'Execução';
-    const adminBadge=u.role==='admin'?'<span class="admin-badge">&#128274; Admin</span>':'';
-    const btn=document.createElement('button');
-    btn.className='user-btn';
-    btn.onclick=function(){selectUser(i)};
-    btn.innerHTML='<div class="user-avatar" style="background:'+u.color+';color:white">'+u.initials+'</div>'
-      +'<div class="user-info"><div class="user-name">'+u.name+'</div>'
-      +'<div class="user-role">'+roleLabel+'</div></div>'+adminBadge;
-    ul.appendChild(btn);
-  });
+  const sel=document.getElementById('user-select');
+  if(!sel)return;
+  sel.innerHTML='<option value="">Selecione seu nome...</option>'
+    +team.map((u,i)=>{
+      const roleLabel=u.role==='admin'?'Administrador':u.role==='vendedor'?'Vendedor':'Execução';
+      return '<option value="'+i+'">'+u.name+' — '+roleLabel+'</option>';
+    }).join('');
+  document.getElementById('user-preview').style.display='none';
+  document.getElementById('btn-entrar').style.display='none';
+}
+
+function onUserSelectChange(){
+  const sel=document.getElementById('user-select');
+  const idx=sel.value;
+  const preview=document.getElementById('user-preview');
+  const btn=document.getElementById('btn-entrar');
+  if(idx===''){preview.style.display='none';btn.style.display='none';return}
+  const u=team[idx];
+  const roleLabel=u.role==='admin'?'Administrador':u.role==='vendedor'?'Vendedor':'Execução';
+  document.getElementById('up-avatar').style.background=u.color;
+  document.getElementById('up-avatar').style.color=u.role==='admin'?'white':'#1D3140';
+  document.getElementById('up-avatar').textContent=u.initials;
+  document.getElementById('up-name').textContent=u.name;
+  document.getElementById('up-role').textContent=roleLabel+(u.role==='admin'?' 🔒':'');
+  preview.style.display='flex';
+  btn.style.display='block';
+}
+
+function confirmUserSelect(){
+  const idx=document.getElementById('user-select').value;
+  if(idx==='')return;
+  selectUser(parseInt(idx));
 }
 
 function selectUser(i){
@@ -649,7 +677,12 @@ function showPinModal(name){
   document.getElementById('pin-modal').classList.add('show');
   setTimeout(()=>document.getElementById('pin-input').focus(),100);
 }
-function closePinModal(){document.getElementById('pin-modal').classList.remove('show');pendingAdminUser=null}
+function closePinModal(){
+  document.getElementById('pin-modal').classList.remove('show');
+  pendingAdminUser=null;
+  const sel=document.getElementById('user-select');
+  if(sel){sel.value='';onUserSelectChange()}
+}
 function checkPin(){
   const val=document.getElementById('pin-input').value;
   if(!pendingAdminUser)return;
