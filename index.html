@@ -1733,14 +1733,20 @@ function autoSave(){
 // (mesmo modelo "blob inteiro" que o app já usava no Firebase).
 async function saveToSupabase(){
   if(!sbReady)return;
+  // Nunca deixa um estado local vazio (ex: ainda carregando, ou race entre
+  // dispositivos) apagar equipe/serviços do banco compartilhado sem repor nada.
+  if(!team.length||!svcs.length){
+    console.error('saveToSupabase abortado: team ou svcs vazios em memória (evitando wipe destrutivo)');
+    return;
+  }
   _sbSuppressEcho=true;
   try{
     await sb.from('orcamentos').delete().not('id','is',null); // cascade apaga items/photos/audios/materiais
     await sb.from('services').delete().not('id','is',null);
     await sb.from('team_members').delete().not('id','is',null);
 
-    if(svcs.length)await sb.from('services').insert(svcs.map(s=>({name:s.name,unit:s.unit,price:s.price})));
-    if(team.length)await sb.from('team_members').insert(team.map(t=>({name:t.name,role:t.role,color:t.color,initials:t.initials,pin:t.pin})));
+    await sb.from('services').insert(svcs.map(s=>({name:s.name,unit:s.unit,price:s.price})));
+    await sb.from('team_members').insert(team.map(t=>({name:t.name,role:t.role,color:t.color,initials:t.initials,pin:t.pin})));
 
     if(orcs.length){
       await sb.from('orcamentos').insert(orcs.map(o=>({
