@@ -904,6 +904,15 @@ function renderAudios(key){
   const el=document.getElementById(key+'-al');if(!el)return;
   el.innerHTML=(recs[key]||[]).map((url,i)=>`<div class="ac">&#128266; <audio controls src="${url}" style="height:26px;flex:1"></audio><button class="btn btn-sm" onclick="recs['${key}'].splice(${i},1);renderAudios('${key}')" style="color:var(--red)">&#10005;</button></div>`).join('');
 }
+// Player somente-leitura para o(s) áudio(s) gravados no lugar do texto de observação.
+// Usado nas telas de admin/execução/vendedor para o áudio "circular" no ticket
+// igual ao texto — antes ficava só salvo, sem aparecer em lugar nenhum.
+function obsAudiosHtml(o){
+  if(!o.audios||!o.audios.length)return '';
+  return '<div style="margin-top:7px">'
+    +o.audios.map(a=>'<div style="display:flex;align-items:center;gap:6px;background:#f0f7fd;border-left:3px solid var(--blue);border-radius:6px;padding:6px 10px;margin-bottom:4px">&#127908; <audio controls src="'+a+'" style="height:28px;flex:1"></audio></div>').join('')
+    +'</div>';
+}
 
 // ── CRIAR ORÇAMENTO ─────────────────────────────────────
 function createOrc(){
@@ -980,6 +989,7 @@ function renderAdmin(){
       ${o.mapsLink?`<div class="info-row"><span class="il">Localização</span><span class="iv"><a href="${o.mapsLink}" target="_blank" style="color:var(--blue)">📍 Ver no Maps</a></span></div>`:''}
       <div class="info-row"><span class="il">Criado</span><span class="iv">${o.created}</span></div>
       ${o.obs?`<div style="font-size:12px;color:var(--gray);margin-top:7px;padding:7px 10px;background:white;border-radius:6px;border-left:3px solid var(--blue)">${o.obs}</div>`:''}
+      ${obsAudiosHtml(o)}
       ${o.folderId?`<div class="drive-info">&#128194; Pasta no Drive criada</div>`:''}
       <div class="btn-group">
         ${o.status==='rascunho'?`<button class="btn btn-ok btn-sm" onclick="approve(${i})">&#10003; Aprovar</button>`:''}
@@ -1032,6 +1042,7 @@ function verOrc(i){
 
       ${o.obs?`<div class="sl" style="margin-top:10px">📝 Observações</div>
       <div style="font-size:13px;color:var(--gray);padding:8px 10px;background:#f7fafd;border-radius:7px;border-left:3px solid var(--blue)">${o.obs}</div>`:''}
+      ${o.audios&&o.audios.length?`<div class="sl" style="margin-top:10px">🎙️ Observação em áudio</div>${obsAudiosHtml(o)}`:''}
 
       ${o.photos&&o.photos.length?`<div class="sl" style="margin-top:10px">📷 Fotos (${o.photos.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${o.photos.map(p=>`<img src="${p}" style="width:80px;height:80px;object-fit:cover;border-radius:7px;border:1px solid #cde0f0">`).join('')}</div>`:''}
@@ -1120,6 +1131,7 @@ function renderVL(){
       +'<div class="info-row"><span class="il">Total</span><span class="iv" style="color:var(--blue)">'+brl(tot(o.items))+'</span></div>'
       +'<div class="info-row"><span class="il">Criado</span><span class="iv">'+o.created+'</span></div>'
       +(o.obs?'<div style="font-size:12px;color:var(--gray);margin-top:6px;padding:7px 10px;background:#f0f7fd;border-radius:6px;border-left:3px solid var(--blue)">'+o.obs+'</div>':'')
+      +obsAudiosHtml(o)
       +(o.status==='rascunho'?'<div class="btn-group"><button class="btn btn-p btn-sm" onclick="enviarParaAdmin('+i+')">&#128228; Enviar para aprovação</button></div>':'')
       +(o.status==='pendente'?'<div style="font-size:12px;color:#856404;margin-top:8px;padding:7px 10px;background:#fff3cd;border-radius:6px">&#9203; Aguardando aprovação do Admin</div>':'')
       +'<div class="btn-group">'
@@ -1297,6 +1309,7 @@ function openOS(i){
     +o.items.map(it=>'<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>'+it.qty+'× '+it.name+'</span><span style="color:var(--blue);font-weight:700">'+brl(it.qty*it.price)+'</span></div>').join('')
     +'<div style="display:flex;justify-content:space-between;padding:9px 0 0;border-top:2px solid var(--bm);margin-top:8px"><span style="font-size:13px;font-weight:600;color:var(--gray)">Total</span><span style="font-size:17px;font-weight:800;color:var(--dark)">'+brl(tot(o.items))+'</span></div>'
     +(o.obs?'<div style="font-size:12px;color:var(--gray);margin-top:8px;padding:8px 10px;background:#f0f7fd;border-radius:6px;border-left:3px solid var(--blue)">'+o.obs+'</div>':'')
+    +obsAudiosHtml(o)
     +'<div style="height:.5px;background:#dce8f3;margin:12px 0"></div>'
     +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:7px">📸 Fotos</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px" id="os-photos-'+i+'"></div>'
@@ -1729,33 +1742,45 @@ function autoSave(){
   },1200);
 }
 
-// Substitui todo o conteúdo das tabelas pelo estado atual em memória
-// (mesmo modelo "blob inteiro" que o app já usava no Firebase).
+// Sincroniza o estado em memória com o Supabase.
+// IMPORTANTE: nunca faz "delete geral" seguido de reinsert condicional — esse
+// padrão já causou dois incidentes de wipe em produção (equipe/serviços em
+// 24/08, orçamentos em 25/08), porque não é atômico: se o estado local
+// estiver vazio (carregando, ou race de sincronização entre dispositivos —
+// um device lê a tabela no meio do delete/insert do outro e "confirma" esse
+// vazio como se fosse real), o delete acontecia e nada era reposto. Agora
+// cada tabela só é tocada quando há dado local para repor, e orçamentos usa
+// upsert + remoção pontual (só dos ids que realmente não existem mais
+// localmente) em vez de apagar tudo.
 async function saveToSupabase(){
   if(!sbReady)return;
-  // Nunca deixa um estado local vazio (ex: ainda carregando, ou race entre
-  // dispositivos) apagar equipe/serviços do banco compartilhado sem repor nada.
-  if(!team.length||!svcs.length){
-    console.error('saveToSupabase abortado: team ou svcs vazios em memória (evitando wipe destrutivo)');
-    return;
-  }
   _sbSuppressEcho=true;
   try{
-    await sb.from('orcamentos').delete().not('id','is',null); // cascade apaga items/photos/audios/materiais
-    await sb.from('services').delete().not('id','is',null);
-    await sb.from('team_members').delete().not('id','is',null);
-
-    await sb.from('services').insert(svcs.map(s=>({name:s.name,unit:s.unit,price:s.price})));
-    await sb.from('team_members').insert(team.map(t=>({name:t.name,role:t.role,color:t.color,initials:t.initials,pin:t.pin})));
+    if(team.length&&svcs.length){
+      await sb.from('services').delete().not('id','is',null);
+      await sb.from('team_members').delete().not('id','is',null);
+      await sb.from('services').insert(svcs.map(s=>({name:s.name,unit:s.unit,price:s.price})));
+      await sb.from('team_members').insert(team.map(t=>({name:t.name,role:t.role,color:t.color,initials:t.initials,pin:t.pin})));
+    }else{
+      console.error('saveToSupabase: team ou svcs vazios em memória, pulando sync de equipe/serviços (evitando wipe destrutivo)');
+    }
 
     if(orcs.length){
-      await sb.from('orcamentos').insert(orcs.map(o=>({
+      const ids=orcs.map(o=>o.id);
+      await sb.from('orcamentos').delete().not('id','in','('+ids.join(',')+')'); // remove só os que não existem mais localmente
+      await sb.from('orcamentos').upsert(orcs.map(o=>({
         id:o.id,client:o.client,tel:o.tel||'',address:o.address||'',maps_link:o.mapsLink||'',
         obs:o.obs||'',desconto:o.desconto||{tipo:'none',val:0,final:0},
         pagamento:o.pagamento||{tipo:'',descricao:''},validade:o.validade||'30 dias',
         status:o.status||'rascunho',kanban:o.kanban||'aguardando',
         created_by:o.createdBy||'',folder_id:o.folderId||'',sig:o.sig||null,sig_exec:o.sigExec||null
-      })));
+      })),{onConflict:'id'});
+
+      await sb.from('orcamento_items').delete().in('orcamento_id',ids);
+      await sb.from('orcamento_photos').delete().in('orcamento_id',ids);
+      await sb.from('orcamento_audios').delete().in('orcamento_id',ids);
+      await sb.from('orcamento_materiais').delete().in('orcamento_id',ids);
+
       const itemRows=[],photoRows=[],audioRows=[],matRows=[];
       orcs.forEach(o=>{
         (o.items||[]).forEach((it,idx)=>itemRows.push({orcamento_id:o.id,name:it.name,unit:it.unit,qty:it.qty,price:it.price,position:idx}));
@@ -1767,6 +1792,8 @@ async function saveToSupabase(){
       if(photoRows.length)await sb.from('orcamento_photos').insert(photoRows);
       if(audioRows.length)await sb.from('orcamento_audios').insert(audioRows);
       if(matRows.length)await sb.from('orcamento_materiais').insert(matRows);
+    }else{
+      console.error('saveToSupabase: orcs vazio em memória, pulando sync de orçamentos (evitando wipe destrutivo)');
     }
 
     await sb.from('app_settings').upsert({key:'admin_pin',value:adminPin});
