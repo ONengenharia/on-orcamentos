@@ -1579,7 +1579,13 @@ function connectDrive(){
   if(!window.google?.accounts?.oauth2){toast('Aguarde o Google carregar...','e');return}
   const client=window.google.accounts.oauth2.initTokenClient({
     client_id:CLIENT_ID,
-    scope:'https://www.googleapis.com/auth/drive.file',
+    // drive.file só dá acesso a arquivos criados pelo próprio app (ou escolhidos
+    // via seletor do Google) — com uma pasta raiz fixa compartilhada entre a
+    // equipe, cada conta Google diferente da que criou a pasta recebia 403 ao
+    // tentar escrever nela. 'drive' dá acesso a qualquer pasta que a conta já
+    // tenha permissão normal no Drive, que é o comportamento que essa pasta
+    // compartilhada sempre precisou.
+    scope:'https://www.googleapis.com/auth/drive',
     prompt:'consent',
     callback(resp){
       if(resp.error){toast('Erro: '+resp.error,'e');return}
@@ -1606,7 +1612,7 @@ async function ensureToken(){
     }
     const client=window.google.accounts.oauth2.initTokenClient({
       client_id:CLIENT_ID,
-      scope:'https://www.googleapis.com/auth/drive.file',
+      scope:'https://www.googleapis.com/auth/drive',
       callback(resp){
         if(resp.error){reject(new Error(resp.error));return}
         driveToken=resp.access_token;
