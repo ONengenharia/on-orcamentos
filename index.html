@@ -1369,6 +1369,7 @@ function openOS(i){
       ?'<div class="btn-group"><button class="btn btn-p" onclick="finishOS('+i+')">✅ Finalizar OS</button></div>'
       :'<div class="btn-group"><div style="display:flex;align-items:center;gap:5px;font-size:13px;color:#155724;font-weight:700;padding:8px 12px;background:#d4edda;border-radius:7px">✅ OS finalizada</div>'
       +'<button class="btn-pdf" onclick="gerarPDF('+i+')">📄 PDF</button>'
+      +'<button class="btn-pdf" style="background:#6c5ce7" onclick="baixarZip('+i+')">⬇️ Baixar ZIP</button>'
       +'<button class="btn-pdf" style="background:#1D3140" onclick="compartilharPasta('+i+')">📦 Compartilhar</button>'
       +'<button class="btn-pdf" style="background:#28a745" onclick="enviarEscritorio('+i+')">🏢 Enviar escritório</button>'
       +(o.sentToOffice?'<div style="font-size:11px;color:#28a745;padding:4px 8px">✓ Enviado ao escritório</div>':'')
@@ -2164,69 +2165,94 @@ function fecharAmpliada(){
 }
 
 // ── COMPARTILHAR (ZIP + Drive público) ──────────────────
-async function compartilharPasta(i){
+// Monta o pacote .zip (PDF + fotos + assinaturas + áudio + resumo) de um
+// orçamento/OS. Usado tanto pra baixar localmente quanto pra subir no Drive.
+async function buildOrcZip(i){
   const o=orcs[i];
-  if(!o){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
+  if(!o)return null;
+  const zip=new JSZip();
+  const baseName=o.id+'_'+o.client.replace(/\s+/g,'_');
+
+  // 1. PDF
+  const pdfRes=await gerarPDF(i,{silent:true});
+  if(pdfRes)zip.file(pdfRes.name,pdfRes.blob);
+
+  // 2. Fotos
+  if(o.photos&&o.photos.length){
+    const fotosFolder=zip.folder('fotos');
+    for(let f=0;f<o.photos.length;f++){
+      try{
+        const p=o.photos[f];
+        const dataUrl=typeof p==='string'?p:p.data;
+        const blob=await fetch(dataUrl).then(r=>r.blob());
+        fotosFolder.file('foto_'+(f+1)+'.jpg',blob);
+      }catch(e){console.error('foto',e)}
+    }
+  }
+
+  // 3. Assinaturas
+  if(o.sig){
+    try{const blob=await fetch(o.sig).then(r=>r.blob());zip.file('assinatura_cliente.png',blob)}catch(e){}
+  }
+  if(o.sigExec){
+    try{const blob=await fetch(o.sigExec).then(r=>r.blob());zip.file('assinatura_executor.png',blob)}catch(e){}
+  }
+
+  // 4. Áudio (se houver gravação nas observações)
+  const audioKey='ex_'+i;
+  if(recs[audioKey]&&recs[audioKey].length){
+    const audioFolder=zip.folder('audios');
+    recs[audioKey].forEach((rec,ri)=>{
+      if(rec.blob)audioFolder.file('audio_'+(ri+1)+'.webm',rec.blob);
+    });
+  }
+
+  // 5. Texto com dados completos
+  let txt='ORÇAMENTO / OS: '+o.id+'\n';
+  txt+='Cliente: '+o.client+'\n';
+  txt+='Telefone: '+(o.tel||'—')+'\n';
+  txt+='Endereço: '+(o.address||'—')+'\n';
+  txt+='Data: '+o.created+'\n\n';
+  txt+='SERVIÇOS:\n';
+  o.items.forEach(it=>{txt+='  '+it.qty+'x '+it.name+' — '+brl(it.qty*it.price)+'\n'});
+  txt+='\nTotal serviços: '+brl(tot(o.items))+'\n';
+  if(o.materiais&&o.materiais.length){
+    txt+='\nMATERIAIS:\n';
+    o.materiais.forEach(m=>{txt+='  '+m.qty+'x '+m.nome+' — '+brl(m.qty*m.val)+'\n'});
+  }
+  if(o.obs)txt+='\nObservações: '+o.obs+'\n';
+  if(o.chegada)txt+='\nChegada: '+o.chegada+(o.fimExec?' | Fim: '+o.fimExec+' | Duração: '+calcDuracao(o.chegada,o.fimExec):'')+'\n';
+  zip.file('resumo.txt',txt);
+
+  const zipBlob=await zip.generateAsync({type:'blob'});
+  const zipName=(o.finishedAt?'OS_':'Orcamento_')+baseName+'.zip';
+  return{o,zipBlob,zipName};
+}
+
+// Baixa o pacote .zip direto no aparelho, sem depender do Google Drive —
+// útil enquanto nem todo mundo tem o Drive conectado com a permissão certa.
+async function baixarZip(i){
+  if(!window.JSZip){toast('Aguarde o carregamento e tente novamente','e');return}
+  lov(true,'Montando pacote...');
+  try{
+    const built=await buildOrcZip(i);
+    if(!built){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
+    const{zipBlob,zipName}=built;
+    const url=URL.createObjectURL(zipBlob);
+    const a=document.createElement('a');a.href=url;a.download=zipName;a.click();
+    URL.revokeObjectURL(url);
+    toast('ZIP baixado!','ok');
+  }catch(e){console.error('Baixar ZIP:',e);toast('Erro ao baixar: '+e.message,'e')}
+  finally{lov(false)}
+}
+
+async function compartilharPasta(i){
   if(!window.JSZip){toast('Aguarde o carregamento e tente novamente','e');return}
   lov(true,'Montando pacote para compartilhar...');
   try{
-    const zip=new JSZip();
-    const baseName=o.id+'_'+o.client.replace(/\s+/g,'_');
-
-    // 1. PDF
-    const pdfRes=await gerarPDF(i,{silent:true});
-    if(pdfRes)zip.file(pdfRes.name,pdfRes.blob);
-
-    // 2. Fotos
-    if(o.photos&&o.photos.length){
-      const fotosFolder=zip.folder('fotos');
-      for(let f=0;f<o.photos.length;f++){
-        try{
-          const p=o.photos[f];
-          const dataUrl=typeof p==='string'?p:p.data;
-          const blob=await fetch(dataUrl).then(r=>r.blob());
-          fotosFolder.file('foto_'+(f+1)+'.jpg',blob);
-        }catch(e){console.error('foto',e)}
-      }
-    }
-
-    // 3. Assinaturas
-    if(o.sig){
-      try{const blob=await fetch(o.sig).then(r=>r.blob());zip.file('assinatura_cliente.png',blob)}catch(e){}
-    }
-    if(o.sigExec){
-      try{const blob=await fetch(o.sigExec).then(r=>r.blob());zip.file('assinatura_executor.png',blob)}catch(e){}
-    }
-
-    // 4. Áudio (se houver gravação nas observações)
-    const audioKey='ex_'+i;
-    if(recs[audioKey]&&recs[audioKey].length){
-      const audioFolder=zip.folder('audios');
-      recs[audioKey].forEach((rec,ri)=>{
-        if(rec.blob)audioFolder.file('audio_'+(ri+1)+'.webm',rec.blob);
-      });
-    }
-
-    // 5. Texto com dados completos
-    let txt='ORÇAMENTO / OS: '+o.id+'\n';
-    txt+='Cliente: '+o.client+'\n';
-    txt+='Telefone: '+(o.tel||'—')+'\n';
-    txt+='Endereço: '+(o.address||'—')+'\n';
-    txt+='Data: '+o.created+'\n\n';
-    txt+='SERVIÇOS:\n';
-    o.items.forEach(it=>{txt+='  '+it.qty+'x '+it.name+' — '+brl(it.qty*it.price)+'\n'});
-    txt+='\nTotal serviços: '+brl(tot(o.items))+'\n';
-    if(o.materiais&&o.materiais.length){
-      txt+='\nMATERIAIS:\n';
-      o.materiais.forEach(m=>{txt+='  '+m.qty+'x '+m.nome+' — '+brl(m.qty*m.val)+'\n'});
-    }
-    if(o.obs)txt+='\nObservações: '+o.obs+'\n';
-    if(o.chegada)txt+='\nChegada: '+o.chegada+(o.fimExec?' | Fim: '+o.fimExec+' | Duração: '+calcDuracao(o.chegada,o.fimExec):'')+'\n';
-    zip.file('resumo.txt',txt);
-
-    // Gera o ZIP
-    const zipBlob=await zip.generateAsync({type:'blob'});
-    const zipName=(o.finishedAt?'OS_':'Orcamento_')+baseName+'.zip';
+    const built=await buildOrcZip(i);
+    if(!built){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
+    const o=built.o,zipBlob=built.zipBlob,zipName=built.zipName;
 
     if(!driveToken){
       // Sem Drive: baixa o ZIP local e o vendedor compartilha manualmente
