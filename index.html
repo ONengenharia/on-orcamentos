@@ -1926,6 +1926,10 @@ async function initSupabaseSync(){
 async function gerarPDF(i,opts){
   opts=opts||{};
   const o=orcs[i];
+  // orcs pode ser recarregado por Realtime (outro dispositivo salvando) enquanto
+  // uma tela com esse índice ainda está aberta — sem essa checagem, o índice
+  // desatualizado quebra com "Cannot read properties of undefined".
+  if(!o){if(!opts.silent)toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return null}
   if(!opts.silent)lov(true,'Gerando PDF...');
   await new Promise(r=>setTimeout(r,80));
   try{
@@ -2162,6 +2166,7 @@ function fecharAmpliada(){
 // ── COMPARTILHAR (ZIP + Drive público) ──────────────────
 async function compartilharPasta(i){
   const o=orcs[i];
+  if(!o){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   if(!window.JSZip){toast('Aguarde o carregamento e tente novamente','e');return}
   lov(true,'Montando pacote para compartilhar...');
   try{
@@ -2310,6 +2315,7 @@ async function compartilharPasta(i){
 // ── ENVIAR PARA ESCRITÓRIO (upload direto na pasta raiz do Drive) ──
 async function enviarEscritorio(i){
   const o=orcs[i];
+  if(!o){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   if(!window.JSZip){toast('Aguarde o carregamento e tente novamente','e');return}
   if(!driveToken){
     toast('Conecte o Drive primeiro para enviar ao escritório','e');
