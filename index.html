@@ -282,7 +282,7 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
   <div class="syncbar" id="syncbar" style="display:none">
     <div class="sync-st"><div class="sdot" id="sdot"></div><span id="slabel" style="font-size:11px">Sincronizando com todos os dispositivos. Drive é só para compartilhar/enviar ao escritório.</span></div>
     <div class="sync-btns">
-      <button class="sbtn" id="btn-drive-connect" onclick="connectDrive()" style="font-size:11px;opacity:.85">&#128279; Conectar Drive (opcional)</button>
+      <button class="sbtn" id="btn-drive-connect" onclick="connectDrive()" style="display:none;font-size:11px;opacity:.85">&#128279; Conectar Drive (opcional)</button>
       <button class="sbtn" id="btn-drive-save" onclick="driveSaveAll()" style="display:none">&#9650; Salvar</button>
       <button class="sbtn" id="btn-drive-load" onclick="driveLoadAll()" style="display:none">&#9660; Carregar</button>
       <button class="sbtn" onclick="testarDrive()" style="background:#856404">&#128269; Testar Drive</button>
@@ -1420,6 +1420,7 @@ function renderPhotos(i){
     </div>`).join('');
 }
 async function addPhoto(oi,input){
+  if(!orcs[oi]){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   const files=Array.from(input.files||[]);
   if(!files.length)return;
   if(!orcs[oi].photos)orcs[oi].photos=[];
@@ -1515,17 +1516,14 @@ function initSigExec(i,o){
 
 function clearSig(i){orcs[i].sig=null;const c=document.getElementById('sig-'+i);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}
 function clearSigExec(i){orcs[i].sigExec=null;autoSave();const c=document.getElementById('sig-exec-'+i);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}
+// Assinatura NÃO é mais obrigatória pra finalizar — pode ser coletada depois
+// (o canvas/"Ampliar" continuam disponíveis com a OS já concluída). orcs[i].sig
+// e sigExec já são mantidos por conta própria (ao desenhar no canvas pequeno,
+// ou ao salvar pela tela ampliada) — reler o canvas aqui era redundante e,
+// pior, podia SOBRESCREVER uma assinatura já salva com o conteúdo (às vezes
+// ainda em branco, por ser assíncrono) do canvas pequeno na tela.
 function finishOS(i){
-  const c=document.getElementById('sig-'+i);
-  const bl=document.createElement('canvas');bl.width=c.width;bl.height=c.height;
-  if(c.toDataURL()===bl.toDataURL()){toast('Colete a assinatura primeiro','e');return}
-  orcs[i].sig=c.toDataURL();
-  // Save executor signature
-  const ce=document.getElementById('sig-exec-'+i);
-  if(ce){
-    const ble=document.createElement('canvas');ble.width=ce.width;ble.height=ce.height;
-    if(ce.toDataURL()!==ble.toDataURL())orcs[i].sigExec=ce.toDataURL();
-  }
+  if(!orcs[i]){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   orcs[i].kanban='concluido';
   orcs[i].finishedAt=new Date().toISOString();
   // Upload assinatura ao Drive
@@ -2787,6 +2785,7 @@ function renderMapa(){
 
 // ── GPS DO TÉCNICO ─────────────────────────────────────
 function registrarChegada(i){
+  if(!orcs[i]){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   toast('Capturando localização...','i');
   const agora=new Date();
   const hora=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -2808,6 +2807,7 @@ function registrarChegada(i){
 }
 
 function registrarFim(i){
+  if(!orcs[i]){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   const agora=new Date();
   const hora=agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   orcs[i].fimExec=hora;
@@ -2851,6 +2851,7 @@ function calcDuracao(chegada,fim){
 }
 
 function addMaterial(i){
+  if(!orcs[i]){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
   const nome=document.getElementById('mat-nome-'+i)?.value.trim();
   const qtd=parseFloat(document.getElementById('mat-qtd-'+i)?.value)||1;
   const val=parseFloat(document.getElementById('mat-val-'+i)?.value)||0;
