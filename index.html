@@ -2172,7 +2172,7 @@ async function gerarPDF(i,opts){
     if(o.sigExec)doc.addImage(o.sigExec,'PNG',ML+3,y+6,sw-6,sh-14);
     doc.setDrawColor(...GR);doc.setLineWidth(0.3);doc.line(ML+5,y+sh-5,ML+sw-5,y+sh-5);
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...GR);
-    doc.text(o.createdBy||'Técnico',ML+sw/2,y+sh-2,{align:'center'});
+    doc.text('ON Engenharia',ML+sw/2,y+sh-2,{align:'center'});
     // Box 2: Cliente
     const sx2=ML+sw+3;
     doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.rect(sx2,y,sw,sh,'FD');
