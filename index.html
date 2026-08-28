@@ -405,6 +405,14 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
           </div>
         </div>
         <div class="card"><div class="sl">&#128221; Observações</div><div id="obs-admin-novo"></div></div>
+        <div class="card">
+          <div class="sl">&#128248; Fotos</div>
+          <div id="admin-novo-photos-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+          <label style="cursor:pointer;display:inline-block">
+            <div class="photo-add" style="width:70px;height:70px"><span>&#128248;</span><span style="font-size:10px">Adicionar</span></div>
+            <input type="file" accept="image/*" multiple style="display:none" onchange="addStagingPhoto('admin-novo',this)">
+          </label>
+        </div>
         <div class="fg"><label class="fl">Vendedor responsável</label><select id="avendedor-sel"></select></div>
         <div class="btn-group">
           <button class="btn btn-p" onclick="createAdminOrc()">&#128228; Gerar orçamento</button>
@@ -535,6 +543,14 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
           </div>
         </div>
         <div class="card"><div class="sl">&#128221; Observações</div><div id="obs-vend"></div></div>
+        <div class="card">
+          <div class="sl">&#128248; Fotos</div>
+          <div id="vend-photos-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+          <label style="cursor:pointer;display:inline-block">
+            <div class="photo-add" style="width:70px;height:70px"><span>&#128248;</span><span style="font-size:10px">Adicionar</span></div>
+            <input type="file" accept="image/*" multiple style="display:none" onchange="addStagingPhoto('vend',this)">
+          </label>
+        </div>
         <div class="btn-group">
           <button class="btn btn-p" onclick="createOrc()">&#128228; Gerar orçamento</button>
           <button class="btn" onclick="clearForm()">&#128465; Limpar</button>
@@ -929,12 +945,12 @@ function createOrc(){
     items:[...cur],obs,
     desconto:desc,pagamento:pgto,
     validade:document.getElementById('validade')?.value||'30 dias',
-    status:'rascunho',photos:[],sig:null,
+    status:'rascunho',photos:[...(stagingPhotos['vend']||[])],sig:null,
     audios:[...(recs['vend']||[])],
     created:new Date().toLocaleDateString('pt-BR'),folderId:'',
     createdBy:currentUser?.name||'—',kanban:'aguardando'};
   orcs.push(orc);
-  cur=[];recs['vend']=[];renderItems();
+  cur=[];recs['vend']=[];stagingPhotos['vend']=[];renderItems();renderStagingPhotos('vend');
   ['cn','ct','ce'].forEach(id=>document.getElementById(id).value='');
   buildObs('obs-vend','vend');
   toast('Orçamento '+id+' gerado!','ok');
@@ -943,7 +959,7 @@ function createOrc(){
   if(driveToken)createOrcFolder(orcs.length-1);
 }
 function clearForm(){
-  cur=[];recs['vend']=[];renderItems();
+  cur=[];recs['vend']=[];stagingPhotos['vend']=[];renderItems();renderStagingPhotos('vend');
   ['cn','ct','ce','cmaps','desc-val'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   const dt=document.getElementById('desc-tipo');if(dt)dt.value='none';
   const pt=document.getElementById('pgto-tipo');if(pt){pt.value='avista';updatePgtoFields('v')}
@@ -1313,7 +1329,7 @@ function openOS(i){
     +'<div style="height:.5px;background:#dce8f3;margin:12px 0"></div>'
     +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:7px">📸 Fotos</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px" id="os-photos-'+i+'"></div>'
-    +(o.status!=='concluido'?'<label style="cursor:pointer"><div class="photo-add" style="width:80px;height:80px"><span>📷</span><span style="font-size:10px">Adicionar</span></div><input type="file" accept="image/*" capture="environment" style="display:none" onchange="addPhoto('+i+',this)"></label>':'')
+    +(o.status!=='concluido'?'<label style="cursor:pointer"><div class="photo-add" style="width:80px;height:80px"><span>📷</span><span style="font-size:10px">Adicionar</span></div><input type="file" accept="image/*" multiple style="display:none" onchange="addPhoto('+i+',this)"></label>':'')
     +'<div style="height:.5px;background:#dce8f3;margin:12px 0"></div>'
     +'<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px">📝 Observações</div>'
     +'<div id="oe-modal-'+i+'"></div>'
@@ -1404,27 +1420,63 @@ function renderPhotos(i){
     </div>`).join('');
 }
 async function addPhoto(oi,input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    if(!orcs[oi].photos)orcs[oi].photos=[];
-    // Comprimir foto antes de salvar
-    lov(true,'Processando foto...');
-    try{
-      const compressed=await compressPhoto(e.target.result,800,0.7);
+  const files=Array.from(input.files||[]);
+  if(!files.length)return;
+  if(!orcs[oi].photos)orcs[oi].photos=[];
+  lov(true,'Processando foto...');
+  try{
+    for(const file of files){
+      const dataUrl=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=e=>resolve(e.target.result);
+        reader.onerror=reject;
+        reader.readAsDataURL(file);
+      });
+      const compressed=await compressPhoto(dataUrl,800,0.7);
       const photoObj={data:compressed,name:file.name,ts:new Date().toISOString()};
       orcs[oi].photos.push(photoObj);
-      if(orcs[oi].status==='aprovado')orcs[oi].status='execucao';
-      renderPhotos(oi);
       if(orcs[oi].folderId&&driveToken)uploadPhotoToDrive(oi,photoObj);
-      toast('Foto adicionada!','ok');
-    }finally{lov(false)}
-  };
-  reader.readAsDataURL(file);
-  input.value='';
+    }
+    if(orcs[oi].status==='aprovado')orcs[oi].status='execucao';
+    renderPhotos(oi);renderPhotosIn(oi,'os-photos-'+oi);
+    toast(files.length>1?files.length+' fotos adicionadas!':'Foto adicionada!','ok');
+  }finally{lov(false);input.value=''}
 }
 function removePhoto(oi,pi){orcs[oi].photos.splice(pi,1);renderPhotos(oi);renderPhotosIn(oi,'os-photos-'+oi)}
 function viewPhoto(src){const w=window.open();w.document.write(`<img src="${src}" style="max-width:100%;height:auto">`)}
+
+// ── FOTOS ANTES DE CRIAR O ORÇAMENTO (vendedor/admin) ──
+// Igual ao padrão de áudio (recs[key]): fica em memória até o orçamento
+// ser efetivamente criado, aí vai junto no photos:[...] do objeto novo.
+let stagingPhotos={};
+async function addStagingPhoto(key,input){
+  const files=Array.from(input.files||[]);
+  if(!files.length)return;
+  if(!stagingPhotos[key])stagingPhotos[key]=[];
+  lov(true,'Processando foto...');
+  try{
+    for(const file of files){
+      const dataUrl=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=e=>resolve(e.target.result);
+        reader.onerror=reject;
+        reader.readAsDataURL(file);
+      });
+      const compressed=await compressPhoto(dataUrl,800,0.7);
+      stagingPhotos[key].push({data:compressed,name:file.name,ts:new Date().toISOString()});
+    }
+    renderStagingPhotos(key);
+    toast(files.length>1?files.length+' fotos adicionadas!':'Foto adicionada!','ok');
+  }finally{lov(false);input.value=''}
+}
+function removeStagingPhoto(key,pi){stagingPhotos[key].splice(pi,1);renderStagingPhotos(key)}
+function renderStagingPhotos(key){
+  const el=document.getElementById(key+'-photos-list');if(!el)return;
+  el.innerHTML=(stagingPhotos[key]||[]).map((p,pi)=>'<div style="position:relative">'
+    +'<img src="'+p.data+'" style="width:70px;height:70px;border-radius:8px;object-fit:cover;border:2px solid var(--bm);cursor:pointer" onclick="viewPhoto(\''+p.data+'\')">'
+    +'<button onclick="removeStagingPhoto(\''+key+'\','+pi+')" style="position:absolute;top:-4px;right:-4px;background:var(--red);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;line-height:1">✕</button>'
+    +'</div>').join('');
+}
 
 // ASSINATURA
 function initSig(i,o){
@@ -1780,7 +1832,10 @@ async function saveToSupabase(){
         obs:o.obs||'',desconto:o.desconto||{tipo:'none',val:0,final:0},
         pagamento:o.pagamento||{tipo:'',descricao:''},validade:o.validade||'30 dias',
         status:o.status||'rascunho',kanban:o.kanban||'aguardando',
-        created_by:o.createdBy||'',folder_id:o.folderId||'',sig:o.sig||null,sig_exec:o.sigExec||null
+        created_by:o.createdBy||'',folder_id:o.folderId||'',sig:o.sig||null,sig_exec:o.sigExec||null,
+        chegada:o.chegada||null,fim_exec:o.fimExec||null,finished_at:o.finishedAt||null,
+        gps_exec:o.gpsExec||null,obs_exec:o.obsExec||null,sent_to_office:o.sentToOffice||null,
+        office_link:o.officeLink||null,share_link:o.shareLink||null
       })),{onConflict:'id'});
 
       await sb.from('orcamento_items').delete().in('orcamento_id',ids);
@@ -1842,6 +1897,9 @@ async function loadFromSupabase(){
     validade:o.validade||'30 dias',status:o.status||'rascunho',
     photos:photosByOrc[o.id]||[],sig:o.sig||null,sigExec:o.sig_exec||null,
     audios:audiosByOrc[o.id]||[],materiais:matsByOrc[o.id]||[],
+    chegada:o.chegada||null,fimExec:o.fim_exec||null,finishedAt:o.finished_at||null,
+    gpsExec:o.gps_exec||null,obsExec:o.obs_exec||null,sentToOffice:o.sent_to_office||null,
+    officeLink:o.office_link||null,shareLink:o.share_link||null,
     created:new Date(o.created_at).toLocaleDateString('pt-BR'),
     folderId:o.folder_id||'',createdBy:o.created_by||'',kanban:o.kanban||'aguardando'
   }));
@@ -2528,13 +2586,13 @@ function createAdminOrc(){
     items:[...adminCurItems],obs,
     desconto:desc,pagamento:pgto,
     validade:document.getElementById('avalidade')?.value||'30 dias',
-    status:'rascunho',photos:[],sig:null,
+    status:'rascunho',photos:[...(stagingPhotos['admin-novo']||[])],sig:null,
     audios:[...(recs['admin-novo']||[])],
     created:new Date().toLocaleDateString('pt-BR'),
     folderId:'',createdBy:vendedor,kanban:'aguardando'
   });
   adminCurItems=[];renderAdminItems();
-  recs['admin-novo']=[];
+  recs['admin-novo']=[];stagingPhotos['admin-novo']=[];renderStagingPhotos('admin-novo');
   ['acn','act','ace','acmaps'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   buildObs('obs-admin-novo','admin-novo');
   toast('Orçamento '+id+' gerado!','ok');
@@ -2544,6 +2602,7 @@ function createAdminOrc(){
 
 function clearAdminForm(){
   adminCurItems=[];renderAdminItems();
+  stagingPhotos['admin-novo']=[];renderStagingPhotos('admin-novo');
   ['acn','act','ace','acmaps'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   buildObs('obs-admin-novo','admin-novo');
 }
