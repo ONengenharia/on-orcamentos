@@ -1002,7 +1002,7 @@ function renderAdmin(){
   el.innerHTML=!lista.length?'<div class="empty">Nenhum orçamento encontrado</div>':lista.map(o=>{
     const i=orcs.indexOf(o);
     return `<div class="card" id="orc-card-${i}">
-      <div class="card-header"><span class="card-title">${o.id} — ${o.client}</span>${badge(o.status)}</div>
+      <div class="card-header"><span class="card-title">${o.id} — ${o.client}</span><span style="display:flex;gap:5px;flex-wrap:wrap">${badge(o.status)}${pagamentoBadgeHtml(o)}</span></div>
       <div class="info-row"><span class="il">Por</span><span class="iv">${o.createdBy||'—'}</span></div>
       <div class="info-row"><span class="il">Endereço</span><span class="iv">${o.address||'—'}</span></div>
       <div class="info-row"><span class="il">Total bruto</span><span class="iv" style="color:var(--blue);font-size:15px">${brl(tot(o.items))}</span></div>
@@ -1017,6 +1017,7 @@ function renderAdmin(){
       <div class="btn-group">
         ${o.status==='rascunho'?`<button class="btn btn-ok btn-sm" onclick="approve(${i})">&#10003; Aprovar</button>`:''}
         ${o.status==='pendente'?`<button class="btn btn-ok btn-sm" onclick="approve(${i})">&#10003; Aprovar</button><button class="btn btn-d btn-sm" onclick="reject(${i})">&#10005; Recusar</button>`:''}
+        ${!['rascunho','pendente','recusado'].includes(o.status)?`<button class="btn btn-sm" style="background:${o.pago?'#856404':'#28a745'};color:white" onclick="togglePagamento(${i})">💰 ${o.pago?'Marcar não pago':'Marcar como pago'}</button>`:''}
         <button class="btn btn-b btn-sm" onclick="verOrc(${i})">&#128065; Ver</button>
         <button class="btn btn-b btn-sm" onclick="gerarPDF(${i})">&#128196; PDF</button>
         <button class="btn btn-sm" style="background:#1D3140;color:white" onclick="compartilharPasta(${i})">&#128230; Compartilhar</button>
@@ -1062,6 +1063,7 @@ function verOrc(i){
       `:''}
       ${o.pagamento?`<div class="info-row"><span class="il">Pagamento</span><span class="iv">${o.pagamento.tipo} — ${o.pagamento.descricao}</span></div>`:''}
       ${o.validade?`<div class="info-row"><span class="il">Validade</span><span class="iv">${o.validade}</span></div>`:''}
+      ${!['rascunho','pendente','recusado'].includes(o.status)?`<div class="info-row"><span class="il">Status pagamento</span><span class="iv">${pagamentoBadgeHtml(o)}</span></div>`:''}
 
       <div class="sl" style="margin-top:10px">📋 Do orçamento</div>
       ${o.obs?`<div style="font-size:13px;color:var(--gray);padding:8px 10px;background:#f7fafd;border-radius:7px;border-left:3px solid var(--blue)">${o.obs}</div>`:'<div class="empty" style="padding:8px 0">Sem observações</div>'}
@@ -1076,6 +1078,7 @@ function verOrc(i){
       <div class="btn-group" style="margin-top:14px">
         ${o.status==='pendente'?`<button class="btn btn-ok btn-sm" onclick="approve(${i});document.getElementById('ver-modal').style.display='none'">✓ Aprovar</button>
         <button class="btn btn-d btn-sm" onclick="reject(${i});document.getElementById('ver-modal').style.display='none'">✕ Recusar</button>`:''}
+        ${!['rascunho','pendente','recusado'].includes(o.status)?`<button class="btn btn-sm" style="background:${o.pago?'#856404':'#28a745'};color:white" onclick="togglePagamento(${i})">💰 ${o.pago?'Marcar não pago':'Marcar como pago'}</button>`:''}
         <button class="btn btn-sm" onclick="document.getElementById('ver-modal').style.display='none';editOrc(${i})">✏️ Editar</button>
         <button class="btn btn-sm" onclick="document.getElementById('ver-modal').style.display='none'" style="margin-left:auto">Fechar</button>
       </div>
@@ -1096,6 +1099,24 @@ function approve(i){
   else autoSave();
 }
 function reject(i){orcs[i].status='recusado';renderAdmin();renderDash();toast('Recusado.');autoSave()}
+// Controle de pagamento, independente do status de execução — o cliente pode
+// pagar antes mesmo da OS ser finalizada.
+function togglePagamento(i){
+  if(!orcs[i]){toast('Este orçamento não existe mais aqui — feche e abra novamente.','e');return}
+  orcs[i].pago=!orcs[i].pago;
+  orcs[i].pagoEm=orcs[i].pago?new Date().toISOString():null;
+  renderAdmin();renderDash();
+  const verBody=document.getElementById('ver-modal-body');
+  if(verBody&&verBody.innerHTML.includes(orcs[i].id))verOrc(i);
+  toast(orcs[i].pago?'Marcado como pago':'Marcado como não pago','ok');
+  autoSave();
+}
+function pagamentoBadgeHtml(o){
+  if(o.status==='rascunho'||o.status==='pendente'||o.status==='recusado')return '';
+  return o.pago
+    ?`<span class="badge" style="background:#d4edda;color:#155724">💰 Pago${o.pagoEm?' em '+new Date(o.pagoEm).toLocaleDateString('pt-BR'):''}</span>`
+    :`<span class="badge" style="background:#fff3cd;color:#856404">💰 Não pago</span>`;
+}
 function deleteOrc(i){
   if(!confirm('Excluir o orçamento '+orcs[i].id+' — '+orcs[i].client+'?\nEsta ação não pode ser desfeita.'))return;
   orcs.splice(i,1);
@@ -1865,7 +1886,8 @@ async function saveToSupabase(){
         created_by:o.createdBy||'',folder_id:o.folderId||'',sig:o.sig||null,sig_exec:o.sigExec||null,
         chegada:o.chegada||null,fim_exec:o.fimExec||null,finished_at:o.finishedAt||null,
         gps_exec:o.gpsExec||null,obs_exec:o.obsExec||null,sent_to_office:o.sentToOffice||null,
-        office_link:o.officeLink||null,share_link:o.shareLink||null,exec_obs:o.execObs||null
+        office_link:o.officeLink||null,share_link:o.shareLink||null,exec_obs:o.execObs||null,
+        pago:!!o.pago,pago_em:o.pagoEm||null
       })),{onConflict:'id'});
 
       await sb.from('orcamento_items').delete().in('orcamento_id',ids);
@@ -1938,6 +1960,7 @@ async function loadFromSupabase(){
     chegada:o.chegada||null,fimExec:o.fim_exec||null,finishedAt:o.finished_at||null,
     gpsExec:o.gps_exec||null,obsExec:o.obs_exec||null,sentToOffice:o.sent_to_office||null,
     officeLink:o.office_link||null,shareLink:o.share_link||null,execObs:o.exec_obs||'',
+    pago:!!o.pago,pagoEm:o.pago_em||null,
     created:new Date(o.created_at).toLocaleDateString('pt-BR'),
     folderId:o.folder_id||'',createdBy:o.created_by||'',kanban:o.kanban||'aguardando'
   }));
