@@ -304,6 +304,7 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
       </div>
       <div class="pane active" id="admin-dash">
         <div class="dash-grid" id="dash-grid"></div>
+        <div id="dash-pagamentos"></div>
         <div id="dash-recent"></div>
       </div>
       <div class="pane" id="admin-precos">
@@ -823,8 +824,34 @@ function renderDash(){
     <div class="dash-card"><div class="dash-num blue">${aprovados}</div><div class="dash-label">&#9989; Em andamento</div></div>
     <div class="dash-card"><div class="dash-num green">${concluidos}</div><div class="dash-label">&#127881; Concluídos</div></div>
     <div class="dash-card"><div class="dash-num red">${recusados}</div><div class="dash-label">&#10060; Recusados</div></div>
-    <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">&#128181; Em aberto</div><div class="dash-total">${brl(emAberto)}</div></div>
+    <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">&#128181; Em aberto (execução)</div><div class="dash-total">${brl(emAberto)}</div></div>
     <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">&#128200; Volume total (excl. recusados)</div><div class="dash-total">${brl(totalVal)}</div></div>`;
+
+  // Pagamentos (independente do status de execução — cliente pode pagar antes de finalizar)
+  const cobraveis=orcs.filter(o=>!['rascunho','pendente','recusado'].includes(o.status));
+  const pagos=cobraveis.filter(o=>o.pago);
+  const naoPagos=cobraveis.filter(o=>!o.pago);
+  const valPago=tot(pagos.flatMap(o=>o.items));
+  const valNaoPago=tot(naoPagos.flatMap(o=>o.items));
+  document.getElementById('dash-pagamentos').innerHTML=`
+    <div class="sl" style="margin-top:14px">&#128176; Pagamentos</div>
+    <div class="dash-grid">
+      <div class="dash-card"><div class="dash-num green">${pagos.length}</div><div class="dash-label">&#9989; Pagos</div></div>
+      <div class="dash-card"><div class="dash-num orange">${naoPagos.length}</div><div class="dash-label">&#9203; Não pagos</div></div>
+      <div class="dash-card full" style="background:#d4edda;border-color:#28a745"><div class="dash-label" style="margin-bottom:6px">&#128181; Total recebido</div><div class="dash-total" style="color:#155724">${brl(valPago)}</div></div>
+      <div class="dash-card full" style="background:#fff3cd;border-color:#ffc107"><div class="dash-label" style="margin-bottom:6px">&#9203; Valores em aberto (não pagos)</div><div class="dash-total" style="color:#856404">${brl(valNaoPago)}</div></div>
+    </div>
+    ${naoPagos.length?`<div class="sl" style="margin-top:10px">Pendências de pagamento</div>`
+      +naoPagos.slice().sort((a,b)=>tot(b.items)-tot(a.items)).map(o=>{
+        const oi=orcs.indexOf(o);
+        return `<div class="card" style="margin-bottom:6px">
+          <div class="card-header"><span class="card-title">${o.id} — ${o.client}</span>${badge(o.status)}</div>
+          <div class="info-row"><span class="il">Valor</span><span class="iv" style="color:#856404;font-weight:700">${brl(tot(o.items))}</span></div>
+          <div class="btn-group"><button class="btn btn-sm" style="background:#28a745;color:white" onclick="togglePagamento(${oi})">💰 Marcar como pago</button></div>
+        </div>`;
+      }).join('')
+    :''}`;
+
   // Recent
   const recent=orcs.slice(-5).reverse();
   document.getElementById('dash-recent').innerHTML=`<div class="sl" style="margin-top:4px">&#128337; Recentes</div>`+
