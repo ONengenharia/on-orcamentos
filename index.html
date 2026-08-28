@@ -2042,7 +2042,7 @@ async function gerarPDF(i,opts){
     doc.setTextColor(...B);doc.setFontSize(13);doc.text(o.id,PW-MR,y,{align:'right'});
     doc.setDrawColor(...B);doc.setLineWidth(0.5);y+=3;doc.line(ML,y,PW-MR,y);y+=8;
     doc.setTextColor(...B);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('DADOS DO CLIENTE',ML,y);y+=4;
-    const rows=[['Cliente:',o.client,'Data:',o.created],['Telefone:',o.tel||'—','Validade:',o.validade||'30 dias'],['Endereço:',o.address||'—','','']];
+    const rows=[['Cliente:',o.client,'Data:',o.created],['Telefone:',o.tel||'—',isOS?'':'Validade:',isOS?'':(o.validade||'30 dias')],['Endereço:',o.address||'—','','']];
     const rh=7;
     doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.setLineWidth(0.3);doc.rect(ML,y,CW,rows.length*rh,'FD');
     rows.forEach((row,ri)=>{
@@ -2129,7 +2129,7 @@ async function gerarPDF(i,opts){
       doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...GR);
       doc.text('Forma de pagamento: '+o.pagamento.tipo+' — '+o.pagamento.descricao,ML,y);y+=5;
     }
-    if(o.validade){
+    if(o.validade&&!isOS){
       doc.setTextColor(...GR);doc.text('Validade do orçamento: '+o.validade,ML,y);y+=8;
     } else {y+=4;}
     // Pagamento via PIX (apenas na OS finalizada)
@@ -2165,28 +2165,21 @@ async function gerarPDF(i,opts){
       doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...GR);doc.text(elines,ML+5,y+6);y+=eoh+8;
     }
     doc.setTextColor(...B);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('APROVAÇÃO E ASSINATURA',ML,y);y+=4;
-    const sw=(CW-6)/3,sh=32;
-    // Box 1: ON Engenharia (com assinatura fixa da empresa)
+    const sw=(CW-3)/2,sh=32;
+    // Box 1: Técnico
     doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.setLineWidth(0.3);doc.rect(ML,y,sw,sh,'FD');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...GR);doc.text('ON Engenharia',ML+sw/2,y+5,{align:'center'});
-    try{doc.addImage(SIGB64,'PNG',ML+3,y+6,sw-6,sh-14)}catch(e){}
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...GR);doc.text('Técnico',ML+sw/2,y+5,{align:'center'});
+    if(o.sigExec)doc.addImage(o.sigExec,'PNG',ML+3,y+6,sw-6,sh-14);
     doc.setDrawColor(...GR);doc.setLineWidth(0.3);doc.line(ML+5,y+sh-5,ML+sw-5,y+sh-5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Assinatura e carimbo',ML+sw/2,y+sh-2,{align:'center'});
-    // Box 2: Executor
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...GR);
+    doc.text(o.createdBy||'Técnico',ML+sw/2,y+sh-2,{align:'center'});
+    // Box 2: Cliente
     const sx2=ML+sw+3;
     doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.rect(sx2,y,sw,sh,'FD');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...GR);doc.text('Executor',sx2+sw/2,y+5,{align:'center'});
-    if(o.sigExec)doc.addImage(o.sigExec,'PNG',sx2+3,y+6,sw-6,sh-14);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...GR);doc.text('Cliente / Responsável',sx2+sw/2,y+5,{align:'center'});
+    if(o.sig)doc.addImage(o.sig,'PNG',sx2+3,y+6,sw-6,sh-14);
     doc.setDrawColor(...GR);doc.setLineWidth(0.3);doc.line(sx2+5,y+sh-5,sx2+sw-5,y+sh-5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...GR);
-    doc.text(o.createdBy||'Executor',sx2+sw/2,y+sh-2,{align:'center'});
-    // Box 3: Cliente
-    const sx3=sx2+sw+3;
-    doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.rect(sx3,y,sw,sh,'FD');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...GR);doc.text('Cliente / Responsável',sx3+sw/2,y+5,{align:'center'});
-    if(o.sig)doc.addImage(o.sig,'PNG',sx3+3,y+6,sw-6,sh-14);
-    doc.setDrawColor(...GR);doc.setLineWidth(0.3);doc.line(sx3+5,y+sh-5,sx3+sw-5,y+sh-5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...GR);doc.text(o.client,sx3+sw/2,y+sh-2,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...GR);doc.text(o.client,sx2+sw/2,y+sh-2,{align:'center'});
     y+=sh+8;
     doc.setDrawColor(...LN);doc.setLineWidth(0.3);doc.line(ML,y,PW-MR,y);
     doc.addImage(FB64,'PNG',3,PH-24,PW-6,21);
@@ -2200,24 +2193,37 @@ async function gerarPDF(i,opts){
         doc.addImage(HB64,'PNG',3,2,PW-6,20);
         doc.setDrawColor(...B);doc.setLineWidth(0.6);doc.line(ML,23,PW-MR,23);
         doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...D);
-        doc.text('RELATÓRIO FOTOGRÁFICO DA EXECUÇÃO',ML,MT+3);
+        doc.text('RELATÓRIO FOTOGRÁFICO DA EXECUÇÃO',PW/2,MT+3,{align:'center'});
         doc.setTextColor(...B);doc.setFontSize(10);doc.text(o.id,PW-MR,MT+3,{align:'right'});
         doc.addImage(FB64,'PNG',3,PH-24,PW-6,21);
         return MT+13;
       };
       py=newPhotoPage();
-      o.execPhotos.forEach((p,pi)=>{
+      for(let pi=0;pi<o.execPhotos.length;pi++){
+        const p=o.execPhotos[pi];
         if(row>=rowsPerPage){py=newPhotoPage();row=0;col=0}
         const x=ML+col*(cellW+cellGap),yy=py+row*(cellH+8);
         try{
           doc.setFillColor(...BL);doc.setDrawColor(...LN);doc.setLineWidth(0.3);doc.rect(x,yy,cellW,cellH,'FD');
-          doc.addImage(p.data,'JPEG',x+2,yy+2,cellW-4,cellH-10);
+          // Encaixa a foto (paisagem ou retrato) dentro da célula sem esticar,
+          // mantendo a proporção original e centralizando.
+          const innerW=cellW-4,innerH=cellH-10;
+          const dim=await new Promise(resolve=>{
+            const img=new Image();
+            img.onload=()=>resolve({w:img.naturalWidth||1,h:img.naturalHeight||1});
+            img.onerror=()=>resolve({w:1,h:1});
+            img.src=p.data;
+          });
+          const scale=Math.min(innerW/dim.w,innerH/dim.h);
+          const dw=dim.w*scale,dh=dim.h*scale;
+          const dx=x+2+(innerW-dw)/2,dy=yy+2+(innerH-dh)/2;
+          doc.addImage(p.data,'JPEG',dx,dy,dw,dh);
           doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...GR);
           doc.text('Foto '+(pi+1),x+cellW/2,yy+cellH-3,{align:'center'});
         }catch(e){console.error('foto pdf',e)}
         col++;
         if(col>=perRow){col=0;row++}
-      });
+      }
     }
 
     // Upload PDF to Drive
