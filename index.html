@@ -1917,10 +1917,19 @@ async function saveToSupabase(){
         pago:!!o.pago,pago_em:o.pagoEm||null
       })),{onConflict:'id'});
 
-      await sb.from('orcamento_items').delete().in('orcamento_id',ids);
-      await sb.from('orcamento_photos').delete().in('orcamento_id',ids);
-      await sb.from('orcamento_audios').delete().in('orcamento_id',ids);
-      await sb.from('orcamento_materiais').delete().in('orcamento_id',ids);
+      // Mesma trava do orçamentos acima: nunca apaga itens/fotos/áudio/materiais
+      // de um orçamento cujo array local esteja vazio — isso já causou perda
+      // real de valores (orcamento_items zerado pra quase todo mundo, restando
+      // só o orçamento mais recente) exatamente pelo mesmo motivo do wipe
+      // original. Só mexe nos filhos de quem tem dado local pra repor.
+      const idsComItems=orcs.filter(o=>o.items&&o.items.length).map(o=>o.id);
+      const idsComFotos=orcs.filter(o=>(o.photos&&o.photos.length)||(o.execPhotos&&o.execPhotos.length)).map(o=>o.id);
+      const idsComAudios=orcs.filter(o=>(o.audios&&o.audios.length)||(o.execAudios&&o.execAudios.length)).map(o=>o.id);
+      const idsComMateriais=orcs.filter(o=>o.materiais&&o.materiais.length).map(o=>o.id);
+      if(idsComItems.length)await sb.from('orcamento_items').delete().in('orcamento_id',idsComItems);
+      if(idsComFotos.length)await sb.from('orcamento_photos').delete().in('orcamento_id',idsComFotos);
+      if(idsComAudios.length)await sb.from('orcamento_audios').delete().in('orcamento_id',idsComAudios);
+      if(idsComMateriais.length)await sb.from('orcamento_materiais').delete().in('orcamento_id',idsComMateriais);
 
       const itemRows=[],photoRows=[],audioRows=[],matRows=[];
       orcs.forEach(o=>{
