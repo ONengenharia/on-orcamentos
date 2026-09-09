@@ -307,6 +307,7 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
         <button class="ptab" onclick="setPane('admin','orcamentos',this)">Orçamentos</button>
         <button class="ptab" onclick="setPane('admin','execucao',this)">Execução</button>
         <button class="ptab" onclick="setPane('admin','comercial',this)">Comercial</button>
+        <button class="ptab" onclick="setPane('admin','producao',this)">Produção</button>
         <button class="ptab" onclick="setPane('admin','mapa',this)">Mapa</button>
         <button class="ptab" onclick="setPane('admin','equipe',this)">Equipe</button>
       </div>
@@ -472,6 +473,13 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
           </select>
         </div>
         <div id="comercial-content"></div>
+      </div>
+
+      <div class="pane" id="admin-producao">
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+          <select id="prod-mes" onchange="renderProducao()" style="width:160px"></select>
+        </div>
+        <div id="producao-content"></div>
       </div>
 
       <div class="pane" id="admin-mapa">
@@ -907,6 +915,7 @@ function setPane(role,pane,btn){
   if(role==='admin'&&pane==='novo')initAdminNovo();
   if(role==='admin'&&pane==='execucao')renderAdminExec();
   if(role==='admin'&&pane==='comercial')initComercial();
+  if(role==='admin'&&pane==='producao')initProducao();
   if(role==='admin'&&pane==='mapa')renderMapa();
   if(role==='vendedor'&&pane==='lista')renderVL();
   if(role==='vendedor'&&pane==='novo'){renderSel();renderRef();buildObs('obs-vend','vend')}
@@ -3009,6 +3018,76 @@ function renderComercial(){
         <div class="info-row"><span class="il">Aprovados</span><span class="iv">${d.aprovados}</span></div>
         <div class="info-row"><span class="il">Concluídos</span><span class="iv">${d.concluidos}</span></div>
       </div>`).join('')||'<div class="empty">Nenhum dado no período</div>'}`;
+}
+
+// ── PRODUÇÃO (OS finalizadas) ───────────────────────────
+// Diferente de Comercial (que olha a data de CRIAÇÃO do orçamento), aqui o
+// filtro é pela data em que a OS foi de fato FINALIZADA — responde "o que foi
+// produzido no mês", independente de quando o orçamento tinha sido gerado.
+function initProducao(){
+  const sel=document.getElementById('prod-mes');if(!sel)return;
+  const meses=[];
+  const now=new Date();
+  for(let i=0;i<12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const label=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    const val=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    meses.push({label,val});
+  }
+  sel.innerHTML=meses.map((m,i)=>`<option value="${m.val}" ${i===0?'selected':''}>${m.label}</option>`).join('')+'<option value="">Todos os períodos</option>';
+  renderProducao();
+}
+function renderProducao(){
+  const el=document.getElementById('producao-content');if(!el)return;
+  const mes=document.getElementById('prod-mes')?.value||'';
+
+  const finalizadas=orcs.filter(o=>{
+    if(o.status!=='concluido')return false;
+    if(!mes)return true;
+    if(!o.finishedAt)return false;
+    const d=new Date(o.finishedAt);
+    const key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
+    return key===mes;
+  });
+
+  const totalOS=finalizadas.length;
+  const valorTotal=finalizadas.reduce((a,o)=>a+tot(o.items),0);
+  const valorMateriais=finalizadas.reduce((a,o)=>a+(o.materiais||[]).reduce((s,m)=>s+m.qty*m.val,0),0);
+  const pagas=finalizadas.filter(o=>o.pago).length;
+
+  // Serviços produzidos, agrupados por nome (soma de quantidade e valor)
+  const porServico={};
+  finalizadas.forEach(o=>{
+    (o.items||[]).forEach(it=>{
+      if(!porServico[it.name])porServico[it.name]={qty:0,valor:0,unit:it.unit};
+      porServico[it.name].qty+=it.qty;
+      porServico[it.name].valor+=it.qty*it.price;
+    });
+  });
+  const servicosOrdenados=Object.entries(porServico).sort((a,b)=>b[1].valor-a[1].valor);
+
+  el.innerHTML=`
+    <div class="dash-grid">
+      <div class="dash-card"><div class="dash-num green">${totalOS}</div><div class="dash-label">🎉 OS finalizadas</div></div>
+      <div class="dash-card"><div class="dash-num blue">${pagas}</div><div class="dash-label">💰 Já pagas</div></div>
+      <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">📦 Valor produzido</div><div class="dash-total">${brl(valorTotal)}</div></div>
+      <div class="dash-card full"><div class="dash-label" style="margin-bottom:6px">🔩 Materiais aplicados</div><div class="dash-total">${brl(valorMateriais)}</div></div>
+    </div>
+    <div class="sl" style="margin-top:10px">🔧 Serviços produzidos no período</div>
+    ${servicosOrdenados.length?`<div class="card"><div style="overflow-x:auto"><table class="ptable"><thead><tr><th>Serviço</th><th style="text-align:right">Qtd</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+      ${servicosOrdenados.map(([nome,d])=>`<tr><td>${nome}</td><td style="text-align:right">${d.qty} ${d.unit}</td><td style="text-align:right">${brl(d.valor)}</td></tr>`).join('')}
+    </tbody></table></div></div>`:'<div class="empty">Nenhum serviço produzido no período</div>'}
+    <div class="sl" style="margin-top:10px">📋 OS finalizadas</div>
+    ${finalizadas.length?'<div class="cards-grid">'+finalizadas.slice().sort((a,b)=>new Date(b.finishedAt||0)-new Date(a.finishedAt||0)).map(o=>{
+      const oi=orcs.indexOf(o);
+      return `<div class="card" style="margin-bottom:8px">
+        <div class="card-header"><span class="card-title">${o.id} — ${o.client}</span>${pagamentoBadgeHtml(o)}</div>
+        <div class="info-row"><span class="il">Criado por</span><span class="iv">${o.createdBy||'—'}</span></div>
+        <div class="info-row"><span class="il">Finalizada em</span><span class="iv">${o.finishedAt?new Date(o.finishedAt).toLocaleDateString('pt-BR'):'—'}</span></div>
+        <div class="info-row"><span class="il">Valor</span><span class="iv" style="color:var(--blue);font-weight:700">${brl(tot(o.items))}</span></div>
+        <div class="btn-group"><button class="btn btn-b btn-sm" onclick="verOrc(${oi})">&#128065; Ver</button><button class="btn btn-b btn-sm" onclick="gerarPDF(${oi})">&#128196; PDF</button></div>
+      </div>`;
+    }).join('')+'</div>':'<div class="empty">Nenhuma OS finalizada no período</div>'}`;
 }
 
 // ── MAPA ───────────────────────────────────────────────
