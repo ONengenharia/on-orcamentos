@@ -221,10 +221,12 @@ canvas.sc{display:block;width:100%;touch-action:none;background:white;cursor:cro
 /* DRIVE STATUS */
 .drive-info{font-size:11px;color:var(--gray);padding:6px 10px;background:var(--bl);border-radius:6px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
@@ -3127,18 +3129,9 @@ function renderAdminExec(){
     }).join('')+'</div>';
 }
 
-function abrirMaps(){
-  const filtrados=window._mapaFiltrados||[];
-  if(!filtrados.length){toast('Nenhum serviço com GPS no período','e');return}
-  if(filtrados.length===1){
-    const g=filtrados[0].gpsExec;
-    window.open('https://maps.google.com/?q='+g.lat+','+g.lng,'_blank');
-    return;
-  }
-  const coords=filtrados.map(o=>o.gpsExec.lat+','+o.gpsExec.lng);
-  window.open('https://www.google.com/maps/dir/'+coords.join('/'),'_blank');
-}
-
+// Mapa com um marcador por OS (sem traçar rota entre os pontos — antes usava
+// a URL de direções do Google Maps, que conectava tudo como um trajeto).
+let _mapaLeaflet=null;
 function renderMapa(){
   const el=document.getElementById('mapa-container');
   const lista=document.getElementById('mapa-lista');
@@ -3164,19 +3157,41 @@ function renderMapa(){
     return true;
   });
 
-  // Salva filtrados no escopo global temporário para o botão acessar
   window._mapaFiltrados=filtrados;
 
-  el.innerHTML=`
-    <div style="text-align:center;padding:18px">
-      <div style="font-size:28px;margin-bottom:6px">🗺️</div>
-      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:4px">${filtrados.length} serviço(s) concluído(s) com GPS</div>
-      <div style="font-size:12px;color:var(--gray);margin-bottom:14px">Somente OS finalizadas com localização capturada</div>
-      <button class="btn btn-p" onclick="abrirMaps()" style="font-size:14px;padding:10px 24px">
-        📍 Abrir todos no Google Maps
-      </button>
-      ${!filtrados.length?'<div style="margin-top:12px;font-size:12px;color:var(--gray)">Finalize OS em campo para registrar o GPS automaticamente</div>':''}
-    </div>`;
+  if(_mapaLeaflet){_mapaLeaflet.remove();_mapaLeaflet=null}
+
+  if(!filtrados.length){
+    el.innerHTML=`
+      <div style="text-align:center;padding:18px">
+        <div style="font-size:28px;margin-bottom:6px">🗺️</div>
+        <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:4px">Nenhum serviço com GPS no período</div>
+        <div style="font-size:12px;color:var(--gray)">Finalize OS em campo para registrar o GPS automaticamente</div>
+      </div>`;
+  } else if(typeof L==='undefined'){
+    el.innerHTML='<div style="text-align:center;padding:18px;font-size:12px;color:var(--gray)">Carregando mapa...</div>';
+    setTimeout(renderMapa,300);
+    return;
+  } else {
+    el.innerHTML='<div id="mapa-leaflet" style="height:360px;border-radius:8px"></div>';
+    _mapaLeaflet=L.map('mapa-leaflet');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap',maxZoom:19
+    }).addTo(_mapaLeaflet);
+    const pontos=[];
+    filtrados.forEach(o=>{
+      const lat=parseFloat(o.gpsExec.lat),lng=parseFloat(o.gpsExec.lng);
+      if(isNaN(lat)||isNaN(lng))return;
+      pontos.push([lat,lng]);
+      L.marker([lat,lng]).addTo(_mapaLeaflet).bindPopup(
+        '<b>'+o.client+'</b><br>'+o.id+(o.created?' — '+o.created:'')
+        +'<br><a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank">Abrir no Google Maps</a>'
+      );
+    });
+    if(pontos.length===1)_mapaLeaflet.setView(pontos[0],15);
+    else if(pontos.length>1)_mapaLeaflet.fitBounds(pontos,{padding:[30,30]});
+    else _mapaLeaflet.setView([-27.6,-52.9],9);
+  }
 
   if(lista){
     lista.innerHTML='<div class="sl" style="margin-top:4px">Lista de serviços concluídos</div>'
