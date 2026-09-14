@@ -2190,8 +2190,29 @@ async function saveToSupabase(){
     }
 
     await sb.from('app_settings').upsert({key:'admin_pin',value:adminPin});
+    backupDiario();
     setTimeout(()=>{_sbSuppressEcho=false},500);
   }catch(e){console.error('Erro Supabase save:',e);_sbSuppressEcho=false}
+}
+
+// Backup diário simples direto no banco (plano free não tem PITR). Roda no
+// máximo 1x por dia, na primeira sincronização — guarda um snapshot completo
+// (orcs já traz itens/fotos/áudio/materiais embutidos em cada orçamento, mais
+// svcs/team) como ponto de restauração manual se algo der errado de novo.
+async function backupDiario(){
+  try{
+    const hoje=new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('on_last_backup')===hoje)return;
+    if(!orcs.length||!svcs.length||!team.length)return; // mesma trava: nunca guarda estado vazio como "backup"
+    await sb.from('backups').insert({data:{orcs,svcs,team}});
+    localStorage.setItem('on_last_backup',hoje);
+    // Mantém só os últimos 30 backups
+    const{data:antigos}=await sb.from('backups').select('id').order('created_at',{ascending:false});
+    if(antigos&&antigos.length>30){
+      const idsRemover=antigos.slice(30).map(b=>b.id);
+      await sb.from('backups').delete().in('id',idsRemover);
+    }
+  }catch(e){console.error('backupDiario:',e)}
 }
 
 // Busca o estado inteiro do Supabase e remonta orcs/svcs/team/nid/adminPin.
