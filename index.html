@@ -2136,7 +2136,10 @@ async function saveToSupabase(){
 
     if(orcs.length){
       const ids=orcs.map(o=>o.id);
-      await sb.from('orcamentos').delete().not('id','in','('+ids.join(',')+')'); // remove só os que não existem mais localmente
+      // Upsert primeiro, remoção dos que sumiram localmente só depois — se a
+      // sequência for interrompida no meio (ex: celular foi pra segundo plano),
+      // o pior caso é sobrar um orçamento antigo pra ser removido na próxima
+      // sincronização, nunca um orçamento válido apagado sem repor.
       await sb.from('orcamentos').upsert(orcs.map(o=>({
         id:o.id,client:o.client,tel:o.tel||'',address:o.address||'',maps_link:o.mapsLink||'',
         obs:o.obs||'',desconto:o.desconto||{tipo:'none',val:0,final:0},
@@ -2148,34 +2151,40 @@ async function saveToSupabase(){
         office_link:o.officeLink||null,share_link:o.shareLink||null,exec_obs:o.execObs||null,
         pago:!!o.pago,pago_em:o.pagoEm||null
       })),{onConflict:'id'});
+      await sb.from('orcamentos').delete().not('id','in','('+ids.join(',')+')'); // remove só os que não existem mais localmente
 
-      // Mesma trava do orçamentos acima: nunca apaga itens/fotos/áudio/materiais
-      // de um orçamento cujo array local esteja vazio — isso já causou perda
-      // real de valores (orcamento_items zerado pra quase todo mundo, restando
-      // só o orçamento mais recente) exatamente pelo mesmo motivo do wipe
-      // original. Só mexe nos filhos de quem tem dado local pra repor.
+      // Mesma trava: nunca mexe nos filhos (itens/fotos/áudio/materiais) de um
+      // orçamento cujo array local esteja vazio — evita repetir o wipe que já
+      // aconteceu duas vezes. E o apagar+reinserir dos que TÊM dado local roda
+      // numa função no banco (RPC), numa única transação: incidente real em
+      // produção mostrou o DELETE de itens indo com sucesso e a sequência
+      // parando bem ali (celular provavelmente foi pra segundo plano no meio
+      // do autoSave) — sem a chamada de INSERT seguinte nunca acontecer,
+      // porque eram duas requisições HTTP separadas. Com RPC, ou as duas
+      // etapas são aplicadas juntas, ou nenhuma é.
       const idsComItems=orcs.filter(o=>o.items&&o.items.length).map(o=>o.id);
       const idsComFotos=orcs.filter(o=>(o.photos&&o.photos.length)||(o.execPhotos&&o.execPhotos.length)).map(o=>o.id);
       const idsComAudios=orcs.filter(o=>(o.audios&&o.audios.length)||(o.execAudios&&o.execAudios.length)).map(o=>o.id);
       const idsComMateriais=orcs.filter(o=>o.materiais&&o.materiais.length).map(o=>o.id);
-      if(idsComItems.length)await sb.from('orcamento_items').delete().in('orcamento_id',idsComItems);
-      if(idsComFotos.length)await sb.from('orcamento_photos').delete().in('orcamento_id',idsComFotos);
-      if(idsComAudios.length)await sb.from('orcamento_audios').delete().in('orcamento_id',idsComAudios);
-      if(idsComMateriais.length)await sb.from('orcamento_materiais').delete().in('orcamento_id',idsComMateriais);
 
-      const itemRows=[],photoRows=[],audioRows=[],matRows=[];
-      orcs.forEach(o=>{
-        (o.items||[]).forEach((it,idx)=>itemRows.push({orcamento_id:o.id,name:it.name,unit:it.unit,qty:it.qty,price:it.price,position:idx}));
-        (o.photos||[]).forEach(p=>photoRows.push({orcamento_id:o.id,data:p.data,name:p.name,ts:p.ts||new Date().toISOString(),source:'orcamento'}));
-        (o.execPhotos||[]).forEach(p=>photoRows.push({orcamento_id:o.id,data:p.data,name:p.name,ts:p.ts||new Date().toISOString(),source:'execucao'}));
-        (o.audios||[]).forEach(a=>audioRows.push({orcamento_id:o.id,data:a,source:'orcamento'}));
-        (o.execAudios||[]).forEach(a=>audioRows.push({orcamento_id:o.id,data:a,source:'execucao'}));
-        (o.materiais||[]).forEach(m=>matRows.push({orcamento_id:o.id,nome:m.nome,qty:m.qty,val:m.val}));
-      });
-      if(itemRows.length)await sb.from('orcamento_items').insert(itemRows);
-      if(photoRows.length)await sb.from('orcamento_photos').insert(photoRows);
-      if(audioRows.length)await sb.from('orcamento_audios').insert(audioRows);
-      if(matRows.length)await sb.from('orcamento_materiais').insert(matRows);
+      if(idsComItems.length||idsComFotos.length||idsComAudios.length||idsComMateriais.length){
+        const itemRows=[],photoRows=[],audioRows=[],matRows=[];
+        orcs.forEach(o=>{
+          (o.items||[]).forEach((it,idx)=>itemRows.push({orcamento_id:o.id,name:it.name,unit:it.unit,qty:it.qty,price:it.price,position:idx}));
+          (o.photos||[]).forEach(p=>photoRows.push({orcamento_id:o.id,data:p.data,name:p.name,ts:p.ts||new Date().toISOString(),source:'orcamento'}));
+          (o.execPhotos||[]).forEach(p=>photoRows.push({orcamento_id:o.id,data:p.data,name:p.name,ts:p.ts||new Date().toISOString(),source:'execucao'}));
+          (o.audios||[]).forEach(a=>audioRows.push({orcamento_id:o.id,data:a,source:'orcamento'}));
+          (o.execAudios||[]).forEach(a=>audioRows.push({orcamento_id:o.id,data:a,source:'execucao'}));
+          (o.materiais||[]).forEach(m=>matRows.push({orcamento_id:o.id,nome:m.nome,qty:m.qty,val:m.val}));
+        });
+        const{error:rpcErr}=await sb.rpc('sync_orcamento_children',{
+          p_item_ids:idsComItems,p_items:itemRows,
+          p_photo_ids:idsComFotos,p_photos:photoRows,
+          p_audio_ids:idsComAudios,p_audios:audioRows,
+          p_material_ids:idsComMateriais,p_materiais:matRows
+        });
+        if(rpcErr)console.error('saveToSupabase: falha no sync_orcamento_children:',rpcErr);
+      }
     }else{
       console.error('saveToSupabase: orcs vazio em memória, pulando sync de orçamentos (evitando wipe destrutivo)');
     }
